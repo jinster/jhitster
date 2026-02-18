@@ -113,10 +113,7 @@ export default function GameScreen() {
     <div className="flex flex-col items-center min-h-screen bg-gray-900 text-white p-4">
       {/* Header */}
       <div className="text-center mb-4 w-full max-w-lg">
-        <p className="text-gray-400 text-sm">
-          Cards remaining: {state.deck.length}
-        </p>
-        <h2 className="text-2xl sm:text-3xl font-bold text-purple-300 mt-1">
+        <h2 className="text-2xl sm:text-3xl font-bold text-purple-300">
           {currentPlayer.name}'s Turn
         </h2>
       </div>

@@ -32,9 +32,9 @@ export const packs: PackEntry[] = [
     meta: {
       id: 'kpop-hits',
       name: 'K-Pop Hits',
-      description: '200 iconic K-pop songs from 1992 to 2024',
-      songCount: 200,
-      yearRange: [1992, 2024],
+      description: '500 K-pop hits spanning 1st gen to 5th gen (1986-2024)',
+      songCount: 500,
+      yearRange: [1986, 2024],
       hasAudio: false,
     },
     load: () => import('./kpop-hits.json').then((m) => m.default as Song[]),
