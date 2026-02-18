@@ -1,0 +1,15 @@
+## Phase 1: Scaffolding - COMPLETE
+
+Done:
+1. Scaffolded Vite + React 19 + TypeScript project
+2. Installed deps: react-router-dom, framer-motion, canvas-confetti
+3. Installed dev deps: tailwindcss, @tailwindcss/vite, @types/canvas-confetti
+4. Configured vite.config.ts with base: '/jhitster/' and Tailwind CSS v4 plugin
+5. Created folder structure: src/components/, hooks/, lib/, pages/, types/
+6. Set up HashRouter in main.tsx with 5 routes: /, /setup, /deal, /play, /victory
+7. Created placeholder pages: TitleScreen, PlayerSetup, GameInitScreen, GameScreen, VictoryPage
+8. Verified: TypeScript compiles, production build succeeds, dev server starts
+
+Note: git 2.25.1 is too old for gpg.format=ssh in ~/.gitconfig. Using HOME=/tmp workaround for commits.
+
+Next: Phase 2 - Song Database (scrape Billboard data, enrich with Spotify IDs)
