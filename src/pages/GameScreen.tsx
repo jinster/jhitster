@@ -27,6 +27,15 @@ export default function GameScreen() {
     }
   }, [state.phase, state.players.length, navigate])
 
+  // Warn before losing game state on refresh
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [])
+
   // Keep pendingCard in sync when a new card is drawn
   useEffect(() => {
     if (state.currentCard && turnPhase === 'placing') {
@@ -36,8 +45,15 @@ export default function GameScreen() {
 
   if (!currentPlayer || (!state.currentCard && turnPhase === 'placing')) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
-        <p className="text-gray-400">No cards remaining in the deck.</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white gap-4">
+        <p className="text-gray-400 text-lg">No cards remaining in the deck!</p>
+        <p className="text-gray-500">The game is a draw — no one reached {state.targetTimelineLength} cards.</p>
+        <button
+          onClick={() => { navigate('/') }}
+          className="mt-4 px-8 py-4 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-xl font-semibold rounded-xl transition-colors cursor-pointer touch-manipulation"
+        >
+          Back to Home
+        </button>
       </div>
     )
   }
