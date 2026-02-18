@@ -1,73 +1,68 @@
-# React + TypeScript + Vite
+# JHitster
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A multiplayer music timeline guessing game. Listen to song previews, guess the release year, and build the longest chronologically correct timeline to win.
 
-Currently, two official plugins are available:
+## How It Works
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1. **Pick your packs** -- choose from curated song collections (US Chart Toppers, Billboard Hot 100, K-Pop Hits)
+2. **Add players** -- 2-8 players take turns
+3. **Listen & place** -- each turn, a song preview plays and you tap where it belongs on your timeline
+4. **Confirm or cancel** -- a two-step placement prevents accidental taps on mobile
+5. **Reveal** -- the real year is shown; correct placements stay, wrong ones are discarded with a penalty card drawn
+6. **Win** -- first player to reach 10 cards in their timeline wins
 
-## React Compiler
+Songs without a bundled audio preview are looked up on-demand via the iTunes Search API, so every song gets a 30-second clip when available.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Song Packs
 
-## Expanding the ESLint configuration
+| Pack | Songs | Years | Audio |
+|------|------:|-------|-------|
+| US Chart Toppers | 60 | 1963-2024 | Bundled |
+| Billboard Year-End Hot 100 | 6,057 | 1959-2024 | iTunes lookup |
+| K-Pop Hits | 500 | 1986-2024 | iTunes lookup |
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Packs are code-split and lazy-loaded, so only selected packs are downloaded.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Tech Stack
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- **React 19** + React Router 7
+- **TypeScript 5.9**
+- **Vite 7** (dev server + build)
+- **Tailwind CSS 4** (mobile-first responsive design)
+- **Framer Motion** (animations)
+- **Vitest** (unit tests)
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Getting Started
+
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open [http://localhost:5173/jhitster/](http://localhost:5173/jhitster/) in your browser.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Scripts
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start dev server |
+| `npm run build` | Type-check + production build |
+| `npm test` | Run unit tests |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run scrape-billboard` | Re-scrape Billboard data from Wikipedia |
+| `npm run fetch-previews` | Fetch iTunes preview URLs for US Chart Toppers |
+
+## Project Structure
+
+```
+src/
+  pages/            Route screens (Title, PackSelection, PlayerSetup, GameInit, Game, Victory)
+  components/       Timeline, AudioPlayer, ErrorBoundary
+  context/          GameContext (reducer-based state management)
+  hooks/            useItunesPreview (on-demand iTunes API lookup with caching)
+  data/packs/       Song pack JSON files + registry with lazy loaders
+  types.ts          Song, Player, GamePhase, SongPack interfaces
+scripts/
+  scrape-billboard.mjs   Wikipedia scraper for Billboard Year-End Hot 100
+  fetch-previews.mjs     iTunes preview URL fetcher
 ```
