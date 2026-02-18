@@ -14,7 +14,7 @@ export interface GameState {
   winner: string | null;
 }
 
-const initialState: GameState = {
+export const initialState: GameState = {
   players: [],
   deck: [],
   currentPlayerIndex: 0,
@@ -26,7 +26,7 @@ const initialState: GameState = {
 
 // ── Actions ────────────────────────────────────────────
 
-type GameAction =
+export type GameAction =
   | { type: 'SET_PLAYERS'; names: string[] }
   | { type: 'DEAL_INITIAL_CARDS'; cardsPerHand: number }
   | { type: 'DRAW_CARD' }
@@ -38,7 +38,7 @@ type GameAction =
 
 // ── Helpers ────────────────────────────────────────────
 
-function shuffle<T>(array: T[]): T[] {
+export function shuffle<T>(array: T[]): T[] {
   const copy = [...array];
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -47,7 +47,7 @@ function shuffle<T>(array: T[]): T[] {
   return copy;
 }
 
-function isPlacementCorrect(timeline: Song[], card: Song, position: number): boolean {
+export function isPlacementCorrect(timeline: Song[], card: Song, position: number): boolean {
   const before = position > 0 ? timeline[position - 1] : null;
   const after = position < timeline.length ? timeline[position] : null;
 
@@ -58,7 +58,7 @@ function isPlacementCorrect(timeline: Song[], card: Song, position: number): boo
 
 // ── Reducer ────────────────────────────────────────────
 
-function gameReducer(state: GameState, action: GameAction): GameState {
+export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'SET_PLAYERS': {
       const deck = shuffle(songsData as Song[]);
