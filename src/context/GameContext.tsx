@@ -31,7 +31,7 @@ type GameAction =
   | { type: 'DEAL_INITIAL_CARDS'; cardsPerHand: number }
   | { type: 'DRAW_CARD' }
   | { type: 'PLACE_CARD'; position: number }
-  | { type: 'CHALLENGE'; challengerIndex: number }
+  | { type: 'CHALLENGE_PENALTY'; playerIndex: number }
   | { type: 'NEXT_TURN' }
   | { type: 'SET_PHASE'; phase: GamePhase }
   | { type: 'RESET' };
@@ -155,12 +155,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
-    case 'CHALLENGE': {
-      // Challenge logic: if the last placement was actually wrong,
-      // the challenger benefits. This is handled in the game screen
-      // by re-checking placement before confirming.
-      // For now, this is a placeholder that will be fleshed out in Task 7.
-      return state;
+    case 'CHALLENGE_PENALTY': {
+      // A challenger was wrong — they draw a penalty card
+      const deck = [...state.deck];
+      const penaltyCard = deck.pop() ?? null;
+      const players = state.players.map((p, i) => {
+        if (i !== action.playerIndex) return p;
+        return {
+          ...p,
+          hand: penaltyCard ? [...p.hand, penaltyCard] : [...p.hand],
+        };
+      });
+      return { ...state, players, deck };
     }
 
     case 'NEXT_TURN': {
@@ -197,7 +203,7 @@ interface GameContextValue {
   dealInitialCards: (cardsPerHand?: number) => void;
   drawCard: () => void;
   placeCard: (position: number) => void;
-  challenge: (challengerIndex: number) => void;
+  challengePenalty: (playerIndex: number) => void;
   nextTurn: () => void;
   resetGame: () => void;
   isPlacementCorrect: (timeline: Song[], card: Song, position: number) => boolean;
@@ -216,8 +222,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'DEAL_INITIAL_CARDS', cardsPerHand }),
     drawCard: () => dispatch({ type: 'DRAW_CARD' }),
     placeCard: (position) => dispatch({ type: 'PLACE_CARD', position }),
-    challenge: (challengerIndex) =>
-      dispatch({ type: 'CHALLENGE', challengerIndex }),
+    challengePenalty: (playerIndex) =>
+      dispatch({ type: 'CHALLENGE_PENALTY', playerIndex }),
     nextTurn: () => dispatch({ type: 'NEXT_TURN' }),
     resetGame: () => dispatch({ type: 'RESET' }),
     isPlacementCorrect,
