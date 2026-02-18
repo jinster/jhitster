@@ -158,7 +158,7 @@ export default function GameScreen() {
                 <button
                   key={i}
                   onClick={() => handleChallenge(i)}
-                  className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white font-semibold rounded-lg transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 active:bg-yellow-700 text-white font-semibold rounded-lg transition-colors cursor-pointer touch-manipulation"
                 >
                   {player.name} Challenges!
                 </button>
@@ -167,7 +167,7 @@ export default function GameScreen() {
           </div>
           <button
             onClick={handleNoChallenge}
-            className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors cursor-pointer"
+            className="px-6 py-2 bg-gray-700 hover:bg-gray-600 active:bg-gray-800 text-white rounded-lg transition-colors cursor-pointer touch-manipulation"
           >
             No Challenge — Reveal
           </button>
@@ -225,7 +225,7 @@ export default function GameScreen() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
           onClick={handleNextTurn}
-          className="mt-6 px-8 py-4 bg-purple-600 hover:bg-purple-500 text-white text-xl font-semibold rounded-xl transition-colors cursor-pointer"
+          className="mt-6 px-8 py-4 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-xl font-semibold rounded-xl transition-colors cursor-pointer touch-manipulation"
         >
           Next Turn
         </motion.button>

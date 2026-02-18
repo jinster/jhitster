@@ -80,7 +80,7 @@ export default function VictoryPage() {
         animate={{ opacity: 1 }}
         transition={{ delay: 1 }}
         onClick={handlePlayAgain}
-        className="px-8 py-4 bg-purple-600 hover:bg-purple-500 text-white text-2xl font-semibold rounded-xl transition-colors cursor-pointer"
+        className="px-8 py-4 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-2xl font-semibold rounded-xl transition-colors cursor-pointer touch-manipulation"
       >
         Play Again
       </motion.button>

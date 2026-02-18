@@ -64,7 +64,7 @@ export default function PlayerSetup() {
         <button
           onClick={handleStart}
           disabled={!canSubmit}
-          className="mt-4 px-8 py-4 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-xl font-semibold rounded-xl transition-colors cursor-pointer"
+          className="mt-4 px-8 py-4 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-xl font-semibold rounded-xl transition-colors cursor-pointer touch-manipulation"
         >
           Continue
         </button>

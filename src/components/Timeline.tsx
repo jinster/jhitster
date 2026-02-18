@@ -21,7 +21,7 @@ export default function Timeline({
   const sorted = [...cards].sort((a, b) => a.year - b.year);
 
   return (
-    <div className="flex items-center gap-1 overflow-x-auto py-4 px-2 min-h-[120px]">
+    <div className="flex items-center gap-1 overflow-x-auto py-4 px-2 min-h-[120px] scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
       {sorted.length === 0 && showDropZones && (
         <DropZone
           position={0}
@@ -100,7 +100,7 @@ function DropZone({
   return (
     <button
       onClick={() => onClick?.(position)}
-      className={`w-8 h-16 sm:w-10 sm:h-20 border-2 rounded-lg shrink-0 transition-colors cursor-pointer ${borderColor}`}
+      className={`w-11 h-20 sm:w-12 sm:h-24 border-2 rounded-lg shrink-0 transition-colors cursor-pointer touch-manipulation ${borderColor}`}
       aria-label={`Place card at position ${position}`}
     />
   );
