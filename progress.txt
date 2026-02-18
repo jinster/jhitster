@@ -10,6 +10,127 @@ Done:
 7. Created placeholder pages: TitleScreen, PlayerSetup, GameInitScreen, GameScreen, VictoryPage
 8. Verified: TypeScript compiles, production build succeeds, dev server starts
 
-Note: git 2.25.1 is too old for gpg.format=ssh in ~/.gitconfig. Using HOME=/tmp workaround for commits.
+## Phase 2: Core Data & State - IN PROGRESS
 
-Next: Phase 2 - Song Database (scrape Billboard data, enrich with Spotify IDs)
+### Task 1: Song data file - COMPLETE
+- Created `src/types.ts` with `Song` interface (id, title, artist, year)
+- Created `src/data/songs.json` with 60 songs spanning 1963–2024
+- Songs include hits from The Beatles, Queen, Nirvana, Beyoncé, Taylor Swift, Sabrina Carpenter, etc.
+- Verified: tsc passes, production build succeeds
+
+### Task 2: Game state context - COMPLETE
+- Created `src/context/GameContext.tsx` with `useReducer`-based state management
+- State: players, deck, currentPlayerIndex, currentCard, phase, targetTimelineLength, winner
+- Actions: SET_PLAYERS, DEAL_INITIAL_CARDS, DRAW_CARD, PLACE_CARD, CHALLENGE, NEXT_TURN, SET_PHASE, RESET
+- Convenience methods via `useGame()` hook: setPlayers, dealInitialCards, drawCard, placeCard, challenge, nextTurn, resetGame
+- Added `Player` and `GamePhase` types to `src/types.ts`
+- Includes Fisher-Yates shuffle and placement validation logic
+- Wired `GameProvider` into `App.tsx`
+- Verified: tsc passes, production build succeeds
+
+### Task 3: Wire PlayerSetup to context - COMPLETE
+- Updated `PlayerSetup.tsx` to call `setPlayers(validNames)` before navigating to `/deal`
+- Added remove player button (✕) when more than 2 players
+- Capped max players at 8, hides "Add Player" when at limit
+- Filters out empty names before submitting
+- Verified: tsc passes, production build succeeds
+
+## Phase 2: Core Data & State - COMPLETE
+
+## Phase 3: Game Initialization - COMPLETE
+
+### Task 4: Deck shuffle & deal - COMPLETE
+- Updated `GameInitScreen.tsx` to call `dealInitialCards(0)` on mount
+- Redirects to /setup if no players are set
+- Staggered Framer Motion animation reveals each player's starting card
+- Shows player name, song title, artist, and year on each dealt card
+- "Start Playing!" button appears after all cards are revealed
+- Verified: tsc passes, production build succeeds
+
+## Phase 4: Core Game Loop - IN PROGRESS
+
+### Task 5: Timeline display component - COMPLETE
+- Created `src/components/Timeline.tsx` with horizontal scrollable card row
+- Cards sorted by year, showing title/artist/year when face-up or 🎵 when face-down
+- Drop zones between cards for placement with click handlers
+- Green/red highlight feedback on drop zones for correct/incorrect placement
+- Responsive sizing (smaller cards on mobile)
+- Framer Motion layout animations on cards
+- Verified: tsc passes, production build succeeds
+
+### Task 6: Current card & placement - COMPLETE
+- Rewrote `GameScreen.tsx` with full turn flow: placing → revealed phases
+- Shows current player name, cards remaining counter
+- Drawn card displays title + artist with ???? for hidden year
+- Player taps drop zones on timeline to place the card
+- After placement: year revealed with animation, green/red result banner
+- Next Turn button appears after 0.5s delay
+- Redirects to /victory or /setup based on game state
+- Verified: tsc passes, production build succeeds
+
+### Task 7: Turn resolution & challenge - COMPLETE
+- Added challenge phase between placement and reveal in GameScreen
+- After placing, other players see "Challenge!" buttons (year still hidden)
+- If challenger is right (placement wrong): current player gets penalty as normal
+- If challenger is wrong (placement correct): challenger draws penalty card
+- Added CHALLENGE_PENALTY reducer action in GameContext
+- Challenge result message displayed in revealed phase
+- "No Challenge — Reveal" button to skip challenge
+- Verified: tsc passes, production build succeeds
+
+### Task 8: Next turn cycling - COMPLETE
+- NEXT_TURN action already implemented in reducer (advances currentPlayerIndex, draws new card)
+- "Next Turn" button in GameScreen dispatches nextTurn() and resets UI state
+- Turn state (placing/challenge/revealed) resets properly between turns
+- Verified: tsc passes, production build succeeds
+
+## Phase 4: Core Game Loop - COMPLETE
+
+## Phase 5: Win Condition & Victory - COMPLETE
+
+### Task 9: Win detection - COMPLETE
+- Already implemented in PLACE_CARD reducer: checks timeline.length >= targetTimelineLength (10)
+- Sets phase to 'victory' and winner name when condition met
+- GameScreen useEffect redirects to /victory on phase change
+
+### Task 10: Victory screen - COMPLETE
+- Updated `VictoryPage.tsx` with winner name, spring animation title
+- Shows winner's completed timeline using Timeline component
+- Canvas-confetti celebration fires from both sides for 3 seconds
+- "Play Again" button resets game state and navigates to home
+- Verified: tsc passes, production build succeeds
+
+## Phase 6: Polish & QA - IN PROGRESS
+
+### Task 11: Responsive layout & mobile UX - COMPLETE
+- Added `touch-manipulation` to all interactive elements (prevents double-tap zoom)
+- Added `active:` states for touch feedback on buttons
+- Enlarged drop zones to 44px+ minimum (Apple HIG touch target)
+- Added safe-area-inset padding for notched phones
+- Used `100dvh` for proper dynamic viewport height on mobile
+- Added `-webkit-tap-highlight-color: transparent` and `overscroll-behavior: none`
+- Smooth touch scrolling on timeline with `-webkit-overflow-scrolling: touch`
+- Responsive text sizes on title screen
+- Verified: tsc passes, production build succeeds
+
+### Task 12: Error boundaries & edge cases - COMPLETE
+- Created `src/components/ErrorBoundary.tsx` wrapping entire app
+- Shows error message with "Back to Home" recovery button on crash
+- Added `beforeunload` warning during active game to prevent accidental data loss
+- Improved empty deck handling: shows draw message and navigation button
+- Pages already redirect to /setup if no players are set
+- Verified: tsc passes, production build succeeds
+
+### Task 13: Add Vitest unit tests - COMPLETE
+- Installed Vitest v4
+- Created `src/__tests__/gameLogic.test.ts` with 23 tests
+- Tests cover: shuffle, isPlacementCorrect, gameReducer (SET_PLAYERS, DEAL_INITIAL_CARDS, PLACE_CARD correct/incorrect, win detection, NEXT_TURN, CHALLENGE_PENALTY, RESET)
+- Exported shuffle, isPlacementCorrect, gameReducer, initialState, GameAction from GameContext for testability
+- Added "test" and "test:watch" scripts to package.json
+- All 23 tests pass
+- Verified: tsc passes, production build succeeds
+
+## Phase 6: Polish & QA - COMPLETE
+
+## ALL TASKS COMPLETE
+All 13 tasks implemented. tsc passes with no errors. npm run build succeeds. npm test passes (23 tests).
