@@ -1,11 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGame } from '../context/GameContext'
 
 export default function PlayerSetup() {
   const navigate = useNavigate()
-  const { setPlayers } = useGame()
+  const { state, setPlayers } = useGame()
   const [names, setNames] = useState(['', ''])
+
+  useEffect(() => {
+    if (state.songs.length === 0) {
+      navigate('/packs')
+    }
+  }, [state.songs.length, navigate])
 
   const addPlayer = () => {
     if (names.length < 8) setNames([...names, ''])

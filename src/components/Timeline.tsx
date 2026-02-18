@@ -8,6 +8,7 @@ interface TimelineProps {
   showDropZones?: boolean;
   highlightPosition?: number | null;
   highlightCorrect?: boolean | null;
+  pendingPosition?: number | null;
 }
 
 export default function Timeline({
@@ -17,6 +18,7 @@ export default function Timeline({
   showDropZones = false,
   highlightPosition,
   highlightCorrect,
+  pendingPosition,
 }: TimelineProps) {
   const sorted = [...cards].sort((a, b) => a.year - b.year);
 
@@ -28,6 +30,7 @@ export default function Timeline({
           onClick={onDropZoneClick}
           highlight={highlightPosition === 0}
           correct={highlightPosition === 0 ? highlightCorrect : null}
+          pending={pendingPosition === 0}
         />
       )}
 
@@ -39,6 +42,7 @@ export default function Timeline({
               onClick={onDropZoneClick}
               highlight={highlightPosition === i}
               correct={highlightPosition === i ? highlightCorrect : null}
+              pending={pendingPosition === i}
             />
           )}
           <SongCard card={card} faceUp={faceUp} />
@@ -51,6 +55,7 @@ export default function Timeline({
           onClick={onDropZoneClick}
           highlight={highlightPosition === sorted.length}
           correct={highlightPosition === sorted.length ? highlightCorrect : null}
+          pending={pendingPosition === sorted.length}
         />
       )}
     </div>
@@ -89,13 +94,16 @@ function DropZone({
   onClick,
   highlight,
   correct,
+  pending,
 }: {
   position: number;
   onClick?: (position: number) => void;
   highlight?: boolean;
   correct?: boolean | null;
+  pending?: boolean;
 }) {
   let borderColor = 'border-dashed border-gray-600 hover:border-purple-400';
+  if (pending) borderColor = 'border-solid border-purple-500 bg-purple-500/20';
   if (highlight && correct === true) borderColor = 'border-solid border-green-500 bg-green-500/10';
   if (highlight && correct === false) borderColor = 'border-solid border-red-500 bg-red-500/10';
 
@@ -105,7 +113,9 @@ function DropZone({
       className={`w-full h-12 sm:w-12 sm:h-24 border-2 rounded-lg shrink-0 transition-colors cursor-pointer touch-manipulation flex items-center justify-center ${borderColor}`}
       aria-label={`Place card at position ${position}`}
     >
-      <span className="text-xs text-gray-500 sm:hidden">Tap to place here</span>
+      <span className="text-xs text-gray-500 sm:hidden">
+        {pending ? 'Selected' : 'Tap to place here'}
+      </span>
     </button>
   );
 }

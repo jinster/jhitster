@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "fetch-previews": "node scripts/fetch-previews.mjs"
+    "fetch-previews": "node scripts/fetch-previews.mjs",
+    "scrape-billboard": "node scripts/scrape-billboard.mjs"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGame } from '../context/GameContext'
@@ -6,7 +6,7 @@ import { useGame } from '../context/GameContext'
 export default function GameInitScreen() {
   const navigate = useNavigate()
   const { state, dealInitialCards } = useGame()
-  const [dealt, setDealt] = useState(false)
+  const dealtRef = useRef(false)
   const [showCards, setShowCards] = useState<number[]>([])
 
   useEffect(() => {
@@ -16,15 +16,15 @@ export default function GameInitScreen() {
       return
     }
 
-    if (!dealt) {
+    if (!dealtRef.current) {
+      dealtRef.current = true
       dealInitialCards(0)
-      setDealt(true)
     }
-  }, [state.players.length, dealt, dealInitialCards, navigate])
+  }, [state.players.length, dealInitialCards, navigate])
 
   // Stagger card reveal animation
   useEffect(() => {
-    if (!dealt) return
+    if (state.phase !== 'playing') return
     const timers: ReturnType<typeof setTimeout>[] = []
     state.players.forEach((_, i) => {
       timers.push(setTimeout(() => {
@@ -32,7 +32,7 @@ export default function GameInitScreen() {
       }, 400 * (i + 1)))
     })
     return () => timers.forEach(clearTimeout)
-  }, [dealt, state.players])
+  }, [state.phase, state.players])
 
   const allRevealed = showCards.length >= state.players.length
 

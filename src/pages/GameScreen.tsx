@@ -4,16 +4,17 @@ import { motion } from 'framer-motion'
 import { useGame } from '../context/GameContext'
 import Timeline from '../components/Timeline'
 import AudioPlayer from '../components/AudioPlayer'
+import { useItunesPreview } from '../hooks/useItunesPreview'
 
-type TurnPhase = 'placing' | 'challenge' | 'revealed'
+type TurnPhase = 'placing' | 'revealed'
 
 export default function GameScreen() {
   const navigate = useNavigate()
-  const { state, placeCard, challengePenalty, nextTurn, drawCard, isPlacementCorrect } = useGame()
+  const { state, placeCard, nextTurn, drawCard, isPlacementCorrect } = useGame()
   const [turnPhase, setTurnPhase] = useState<TurnPhase>('placing')
+  const [pendingPosition, setPendingPosition] = useState<number | null>(null)
   const [placedPosition, setPlacedPosition] = useState<number | null>(null)
   const [wasCorrect, setWasCorrect] = useState<boolean | null>(null)
-  const [challengeResult, setChallengeResult] = useState<string | null>(null)
   // Store the current card info before dispatch clears it
   const pendingCard = useRef(state.currentCard)
 
@@ -62,51 +63,40 @@ export default function GameScreen() {
   // Use pendingCard during challenge/revealed phases (since placeCard clears currentCard)
   const displayCard = turnPhase === 'placing' ? state.currentCard! : pendingCard.current!
 
+  // On-demand iTunes preview lookup
+  const itunesLookupSong = turnPhase !== 'revealed' ? displayCard : null
+  const { previewUrl: itunesPreviewUrl, loading: itunesLoading } = useItunesPreview(itunesLookupSong)
+  const effectivePreviewUrl = displayCard.previewUrl || itunesPreviewUrl
+
   const handleDropZoneClick = (position: number) => {
     if (turnPhase !== 'placing') return
+    setPendingPosition(position)
+  }
+
+  const confirmPlacement = () => {
+    if (pendingPosition === null) return
 
     const sortedTimeline = [...currentPlayer.timeline].sort((a, b) => a.year - b.year)
-    const correct = isPlacementCorrect(sortedTimeline, state.currentCard!, position)
+    const correct = isPlacementCorrect(sortedTimeline, state.currentCard!, pendingPosition)
 
     pendingCard.current = state.currentCard
-    setPlacedPosition(position)
+    setPlacedPosition(pendingPosition)
     setWasCorrect(correct)
+    setPendingPosition(null)
 
-    // If more than 1 player, show challenge phase
-    if (state.players.length > 1) {
-      setTurnPhase('challenge')
-    } else {
-      // Solo mode: skip challenge
-      placeCard(position)
-      setTurnPhase('revealed')
-    }
-  }
-
-  const handleNoChallenge = () => {
-    placeCard(placedPosition!)
+    placeCard(pendingPosition)
     setTurnPhase('revealed')
   }
 
-  const handleChallenge = (challengerIndex: number) => {
-    const challengerName = state.players[challengerIndex].name
-
-    if (wasCorrect) {
-      placeCard(placedPosition!)
-      challengePenalty(challengerIndex)
-      setChallengeResult(`${challengerName} challenged and was WRONG! They draw a penalty card.`)
-    } else {
-      placeCard(placedPosition!)
-      setChallengeResult(`${challengerName} challenged and was RIGHT! ${currentPlayer.name} gets a penalty.`)
-    }
-
-    setTurnPhase('revealed')
+  const cancelPendingPlacement = () => {
+    setPendingPosition(null)
   }
 
   const handleNextTurn = () => {
     setTurnPhase('placing')
+    setPendingPosition(null)
     setPlacedPosition(null)
     setWasCorrect(null)
-    setChallengeResult(null)
 
     if (state.phase === 'victory') {
       navigate('/victory')
@@ -164,8 +154,13 @@ export default function GameScreen() {
             className="w-full bg-gray-800 border-2 border-purple-500 rounded-xl flex flex-col items-center justify-center p-4"
           >
             <p className="text-sm text-gray-500 mb-3">Listen and guess the year</p>
-            {displayCard.previewUrl ? (
-              <AudioPlayer src={displayCard.previewUrl} />
+            {itunesLoading ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-gray-400 text-sm">Loading preview...</p>
+              </div>
+            ) : effectivePreviewUrl ? (
+              <AudioPlayer src={effectivePreviewUrl} />
             ) : (
               <div className="flex flex-col items-center gap-3">
                 <p className="text-gray-400">No preview available</p>
@@ -180,39 +175,6 @@ export default function GameScreen() {
           </motion.div>
         )}
       </div>
-
-      {/* Challenge Phase */}
-      {turnPhase === 'challenge' && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-4 text-center w-full max-w-lg"
-        >
-          <p className="text-yellow-400 font-semibold text-lg mb-3">
-            {currentPlayer.name} placed the card. Anyone want to challenge?
-          </p>
-          <div className="flex flex-col sm:flex-row sm:flex-wrap justify-center gap-2 mb-3">
-            {state.players.map((player, i) => {
-              if (i === state.currentPlayerIndex) return null
-              return (
-                <button
-                  key={i}
-                  onClick={() => handleChallenge(i)}
-                  className="w-full sm:w-auto px-4 py-3 bg-yellow-600 hover:bg-yellow-500 active:bg-yellow-700 text-white font-semibold rounded-lg transition-colors cursor-pointer touch-manipulation"
-                >
-                  {player.name} Challenges!
-                </button>
-              )
-            })}
-          </div>
-          <button
-            onClick={handleNoChallenge}
-            className="w-full sm:w-auto px-6 py-3 bg-gray-700 hover:bg-gray-600 active:bg-gray-800 text-white rounded-lg transition-colors cursor-pointer touch-manipulation"
-          >
-            No Challenge — Reveal
-          </button>
-        </motion.div>
-      )}
 
       {/* Result Banner */}
       {turnPhase === 'revealed' && (
@@ -230,17 +192,34 @@ export default function GameScreen() {
           >
             {wasCorrect ? 'Correct! Card added to timeline.' : 'Wrong! Card discarded.'}
           </div>
-          {challengeResult && (
-            <p className="text-yellow-300 text-sm mt-2">{challengeResult}</p>
-          )}
         </motion.div>
       )}
 
       {/* Instructions */}
       {turnPhase === 'placing' && (
         <p className="text-gray-400 text-sm mb-2">
-          Tap a slot on the timeline to place this song
+          {pendingPosition !== null
+            ? 'Confirm placement or tap another slot'
+            : 'Tap a slot on the timeline to place this song'}
         </p>
+      )}
+
+      {/* Confirm / Cancel buttons */}
+      {turnPhase === 'placing' && pendingPosition !== null && (
+        <div className="flex gap-3 mb-3 w-full max-w-lg">
+          <button
+            onClick={confirmPlacement}
+            className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-500 active:bg-green-700 text-white font-semibold rounded-lg transition-colors cursor-pointer touch-manipulation"
+          >
+            Confirm
+          </button>
+          <button
+            onClick={cancelPendingPlacement}
+            className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 active:bg-gray-800 text-white font-semibold rounded-lg transition-colors cursor-pointer touch-manipulation"
+          >
+            Cancel
+          </button>
+        </div>
       )}
 
       {/* Timeline */}
@@ -255,6 +234,7 @@ export default function GameScreen() {
           onDropZoneClick={handleDropZoneClick}
           highlightPosition={turnPhase === 'revealed' ? placedPosition : null}
           highlightCorrect={turnPhase === 'revealed' ? wasCorrect : null}
+          pendingPosition={turnPhase === 'placing' ? pendingPosition : null}
         />
       </div>
 

@@ -16,6 +16,17 @@ const song1980: Song = { id: 3, title: 'Song 1980', artist: 'C', year: 1980 };
 const song1990: Song = { id: 4, title: 'Song 1990', artist: 'D', year: 1990 };
 const song2000: Song = { id: 5, title: 'Song 2000', artist: 'E', year: 2000 };
 
+const testSongs: Song[] = [song1960, song1970, song1980, song1990, song2000];
+
+/** Helper: create a state with packs loaded */
+function stateWithPacks(songs: Song[] = testSongs): GameState {
+  return gameReducer(initialState, {
+    type: 'SET_PACKS',
+    packIds: ['test-pack'],
+    songs,
+  });
+}
+
 // ── shuffle ────────────────────────────────────────────
 
 describe('shuffle', () => {
@@ -87,9 +98,23 @@ describe('isPlacementCorrect', () => {
 // ── gameReducer ────────────────────────────────────────
 
 describe('gameReducer', () => {
+  describe('SET_PACKS', () => {
+    it('stores pack IDs and merged songs', () => {
+      const state = gameReducer(initialState, {
+        type: 'SET_PACKS',
+        packIds: ['pack-a', 'pack-b'],
+        songs: testSongs,
+      });
+      expect(state.selectedPackIds).toEqual(['pack-a', 'pack-b']);
+      expect(state.songs).toHaveLength(5);
+      expect(state.songs[0].title).toBe('Song 1960');
+    });
+  });
+
   describe('SET_PLAYERS', () => {
     it('initializes players with names and empty timelines/hands', () => {
-      const state = gameReducer(initialState, {
+      let state = stateWithPacks();
+      state = gameReducer(state, {
         type: 'SET_PLAYERS',
         names: ['Alice', 'Bob'],
       });
@@ -100,18 +125,30 @@ describe('gameReducer', () => {
       expect(state.players[0].hand).toEqual([]);
     });
 
-    it('shuffles the deck', () => {
-      const state = gameReducer(initialState, {
+    it('shuffles the deck from loaded songs', () => {
+      let state = stateWithPacks();
+      state = gameReducer(state, {
         type: 'SET_PLAYERS',
         names: ['Alice', 'Bob'],
       });
-      expect(state.deck.length).toBeGreaterThan(0);
+      expect(state.deck.length).toBe(testSongs.length);
+    });
+
+    it('preserves selectedPackIds and songs', () => {
+      let state = stateWithPacks();
+      state = gameReducer(state, {
+        type: 'SET_PLAYERS',
+        names: ['Alice'],
+      });
+      expect(state.selectedPackIds).toEqual(['test-pack']);
+      expect(state.songs).toHaveLength(5);
     });
   });
 
   describe('DEAL_INITIAL_CARDS', () => {
     it('deals 1 timeline card per player and draws a current card', () => {
-      let state = gameReducer(initialState, {
+      let state = stateWithPacks();
+      state = gameReducer(state, {
         type: 'SET_PLAYERS',
         names: ['Alice', 'Bob'],
       });
@@ -275,34 +312,16 @@ describe('gameReducer', () => {
     });
   });
 
-  describe('CHALLENGE_PENALTY', () => {
-    it('makes the specified player draw a penalty card', () => {
-      const state: GameState = {
-        ...initialState,
-        phase: 'playing',
-        players: [
-          { name: 'Alice', timeline: [song1960], hand: [] },
-          { name: 'Bob', timeline: [song1970], hand: [] },
-        ],
-        deck: [song1990],
-        currentCard: song1980,
-        currentPlayerIndex: 0,
-      };
-
-      const next = gameReducer(state, { type: 'CHALLENGE_PENALTY', playerIndex: 1 });
-
-      expect(next.players[1].hand).toHaveLength(1);
-      expect(next.deck.length).toBe(0);
-    });
-  });
-
   describe('RESET', () => {
-    it('returns to initial state', () => {
-      const state: GameState = {
-        ...initialState,
-        phase: 'playing',
-        players: [{ name: 'Alice', timeline: [song1960], hand: [] }],
-        deck: [song1990],
+    it('returns to initial state but preserves packs', () => {
+      let state = stateWithPacks();
+      state = gameReducer(state, {
+        type: 'SET_PLAYERS',
+        names: ['Alice'],
+      });
+      state = {
+        ...state,
+        phase: 'playing' as const,
         currentPlayerIndex: 0,
       };
 
@@ -312,6 +331,9 @@ describe('gameReducer', () => {
       expect(next.deck).toEqual([]);
       expect(next.phase).toBe('setup');
       expect(next.currentCard).toBeNull();
+      // Packs preserved
+      expect(next.selectedPackIds).toEqual(['test-pack']);
+      expect(next.songs).toHaveLength(5);
     });
   });
 });

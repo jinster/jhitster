@@ -13,3 +13,12 @@ export interface Player {
 }
 
 export type GamePhase = 'setup' | 'playing' | 'victory';
+
+export interface SongPack {
+  id: string;
+  name: string;
+  description: string;
+  songCount: number;
+  yearRange: [number, number];
+  hasAudio: boolean;
+}

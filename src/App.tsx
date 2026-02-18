@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import { GameProvider } from './context/GameContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import TitleScreen from './pages/TitleScreen'
+import PackSelection from './pages/PackSelection'
 import PlayerSetup from './pages/PlayerSetup'
 import GameInitScreen from './pages/GameInitScreen'
 import GameScreen from './pages/GameScreen'
@@ -13,6 +14,7 @@ export default function App() {
       <GameProvider>
         <Routes>
           <Route path="/" element={<TitleScreen />} />
+          <Route path="/packs" element={<PackSelection />} />
           <Route path="/setup" element={<PlayerSetup />} />
           <Route path="/deal" element={<GameInitScreen />} />
           <Route path="/play" element={<GameScreen />} />

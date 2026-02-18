@@ -1,6 +1,5 @@
 import { createContext, useContext, useReducer, type ReactNode } from 'react';
 import type { Song, Player, GamePhase } from '../types';
-import songsData from '../data/songs.json';
 
 // ── State ──────────────────────────────────────────────
 
@@ -12,6 +11,8 @@ export interface GameState {
   phase: GamePhase;
   targetTimelineLength: number;
   winner: string | null;
+  selectedPackIds: string[];
+  songs: Song[];
 }
 
 export const initialState: GameState = {
@@ -22,16 +23,18 @@ export const initialState: GameState = {
   phase: 'setup',
   targetTimelineLength: 10,
   winner: null,
+  selectedPackIds: [],
+  songs: [],
 };
 
 // ── Actions ────────────────────────────────────────────
 
 export type GameAction =
+  | { type: 'SET_PACKS'; packIds: string[]; songs: Song[] }
   | { type: 'SET_PLAYERS'; names: string[] }
   | { type: 'DEAL_INITIAL_CARDS'; cardsPerHand: number }
   | { type: 'DRAW_CARD' }
   | { type: 'PLACE_CARD'; position: number }
-  | { type: 'CHALLENGE_PENALTY'; playerIndex: number }
   | { type: 'NEXT_TURN' }
   | { type: 'SET_PHASE'; phase: GamePhase }
   | { type: 'RESET' };
@@ -60,10 +63,20 @@ export function isPlacementCorrect(timeline: Song[], card: Song, position: numbe
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
+    case 'SET_PACKS': {
+      return {
+        ...state,
+        selectedPackIds: action.packIds,
+        songs: action.songs,
+      };
+    }
+
     case 'SET_PLAYERS': {
-      const deck = shuffle(songsData as Song[]);
+      const deck = shuffle(state.songs);
       return {
         ...initialState,
+        selectedPackIds: state.selectedPackIds,
+        songs: state.songs,
         players: action.names.map((name) => ({ name, timeline: [], hand: [] })),
         deck,
         phase: 'setup',
@@ -155,20 +168,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
-    case 'CHALLENGE_PENALTY': {
-      // A challenger was wrong — they draw a penalty card
-      const deck = [...state.deck];
-      const penaltyCard = deck.pop() ?? null;
-      const players = state.players.map((p, i) => {
-        if (i !== action.playerIndex) return p;
-        return {
-          ...p,
-          hand: penaltyCard ? [...p.hand, penaltyCard] : [...p.hand],
-        };
-      });
-      return { ...state, players, deck };
-    }
-
     case 'NEXT_TURN': {
       const nextIndex = (state.currentPlayerIndex + 1) % state.players.length;
       const deck = [...state.deck];
@@ -186,7 +185,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'RESET': {
-      return { ...initialState };
+      return {
+        ...initialState,
+        selectedPackIds: state.selectedPackIds,
+        songs: state.songs,
+      };
     }
 
     default:
@@ -199,11 +202,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 interface GameContextValue {
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
+  setPacks: (packIds: string[], songs: Song[]) => void;
   setPlayers: (names: string[]) => void;
   dealInitialCards: (cardsPerHand?: number) => void;
   drawCard: () => void;
   placeCard: (position: number) => void;
-  challengePenalty: (playerIndex: number) => void;
   nextTurn: () => void;
   resetGame: () => void;
   isPlacementCorrect: (timeline: Song[], card: Song, position: number) => boolean;
@@ -217,13 +220,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const value: GameContextValue = {
     state,
     dispatch,
+    setPacks: (packIds, songs) => dispatch({ type: 'SET_PACKS', packIds, songs }),
     setPlayers: (names) => dispatch({ type: 'SET_PLAYERS', names }),
     dealInitialCards: (cardsPerHand = 0) =>
       dispatch({ type: 'DEAL_INITIAL_CARDS', cardsPerHand }),
     drawCard: () => dispatch({ type: 'DRAW_CARD' }),
     placeCard: (position) => dispatch({ type: 'PLACE_CARD', position }),
-    challengePenalty: (playerIndex) =>
-      dispatch({ type: 'CHALLENGE_PENALTY', playerIndex }),
     nextTurn: () => dispatch({ type: 'NEXT_TURN' }),
     resetGame: () => dispatch({ type: 'RESET' }),
     isPlacementCorrect,
