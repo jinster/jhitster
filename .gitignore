@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+PRD.md
+progress.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
