@@ -37,10 +37,10 @@ export default function GameInitScreen() {
   const allRevealed = showCards.length >= state.players.length
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-8">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4 sm:p-8">
       <h1 className="text-4xl font-bold mb-8">Dealing Cards...</h1>
 
-      <div className="flex flex-wrap justify-center gap-6 mb-12">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-4 sm:gap-6 mb-8 sm:mb-12 w-full max-w-lg">
         <AnimatePresence>
           {state.players.map((player, i) => (
             showCards.includes(i) && (
@@ -49,11 +49,11 @@ export default function GameInitScreen() {
                 initial={{ opacity: 0, y: 30, scale: 0.8 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.4 }}
-                className="flex flex-col items-center gap-2"
+                className="flex flex-col items-center gap-2 w-full sm:w-auto"
               >
                 <p className="text-lg font-semibold text-purple-300">{player.name}</p>
                 {player.timeline[0] && (
-                  <div className="w-36 h-24 bg-gray-800 border border-purple-500 rounded-lg flex flex-col items-center justify-center p-2">
+                  <div className="w-full sm:w-36 h-16 sm:h-24 bg-gray-800 border border-purple-500 rounded-lg flex flex-row sm:flex-col items-center justify-between sm:justify-center p-2">
                     <p className="text-sm font-medium text-center leading-tight">{player.timeline[0].title}</p>
                     <p className="text-xs text-gray-400 mt-1">{player.timeline[0].artist}</p>
                     <p className="text-xs text-purple-400 mt-1">{player.timeline[0].year}</p>
@@ -71,7 +71,7 @@ export default function GameInitScreen() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
           onClick={() => navigate('/play')}
-          className="px-8 py-4 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-2xl font-semibold rounded-xl transition-colors cursor-pointer touch-manipulation"
+          className="w-full max-w-lg px-8 py-4 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-2xl font-semibold rounded-xl transition-colors cursor-pointer touch-manipulation"
         >
           Start Playing!
         </motion.button>

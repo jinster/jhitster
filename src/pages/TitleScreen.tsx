@@ -9,7 +9,7 @@ export default function TitleScreen() {
       <p className="text-lg sm:text-xl text-gray-400 mb-10 sm:mb-12 text-center">Guess the year, build your timeline</p>
       <button
         onClick={() => navigate('/setup')}
-        className="px-8 py-4 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-2xl font-semibold rounded-xl transition-colors cursor-pointer touch-manipulation"
+        className="w-full max-w-sm px-8 py-4 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-2xl font-semibold rounded-xl transition-colors cursor-pointer touch-manipulation"
       >
         Start Game
       </button>

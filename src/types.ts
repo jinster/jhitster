@@ -3,6 +3,7 @@ export interface Song {
   title: string;
   artist: string;
   year: number;
+  previewUrl?: string | null;
 }
 
 export interface Player {

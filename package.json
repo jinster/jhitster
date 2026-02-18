@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "fetch-previews": "node scripts/fetch-previews.mjs"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

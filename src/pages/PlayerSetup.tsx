@@ -31,7 +31,7 @@ export default function PlayerSetup() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-8">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4 sm:p-8">
       <h1 className="text-4xl font-bold mb-8">Player Setup</h1>
       <div className="flex flex-col gap-4 w-full max-w-md">
         {names.map((name, i) => (
@@ -41,12 +41,12 @@ export default function PlayerSetup() {
               placeholder={`Player ${i + 1}`}
               value={name}
               onChange={(e) => updateName(i, e.target.value)}
-              className="flex-1 px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white text-lg focus:outline-none focus:border-purple-500"
+              className="flex-1 min-h-[48px] px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white text-lg focus:outline-none focus:border-purple-500"
             />
             {names.length > 2 && (
               <button
                 onClick={() => removePlayer(i)}
-                className="px-3 py-3 rounded-lg bg-gray-800 border border-gray-600 text-gray-400 hover:text-red-400 hover:border-red-400 transition-colors cursor-pointer"
+                className="min-w-[48px] min-h-[48px] px-3 py-3 rounded-lg bg-gray-800 border border-gray-600 text-gray-400 hover:text-red-400 hover:border-red-400 transition-colors cursor-pointer"
               >
                 ✕
               </button>
@@ -64,7 +64,7 @@ export default function PlayerSetup() {
         <button
           onClick={handleStart}
           disabled={!canSubmit}
-          className="mt-4 px-8 py-4 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-xl font-semibold rounded-xl transition-colors cursor-pointer touch-manipulation"
+          className="mt-4 w-full px-8 py-4 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-xl font-semibold rounded-xl transition-colors cursor-pointer touch-manipulation"
         >
           Continue
         </button>

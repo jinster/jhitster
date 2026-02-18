@@ -41,7 +41,7 @@ export default function VictoryPage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-8">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4 sm:p-8">
       <motion.h1
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
@@ -66,7 +66,7 @@ export default function VictoryPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
-          className="w-full max-w-4xl mb-8"
+          className="w-full max-w-lg mb-8"
         >
           <h3 className="text-sm text-gray-500 mb-1 text-center">
             {winner.name}'s Timeline ({winner.timeline.length} cards)
@@ -80,7 +80,7 @@ export default function VictoryPage() {
         animate={{ opacity: 1 }}
         transition={{ delay: 1 }}
         onClick={handlePlayAgain}
-        className="px-8 py-4 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-2xl font-semibold rounded-xl transition-colors cursor-pointer touch-manipulation"
+        className="w-full max-w-lg px-8 py-4 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-2xl font-semibold rounded-xl transition-colors cursor-pointer touch-manipulation"
       >
         Play Again
       </motion.button>
