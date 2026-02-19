@@ -13,7 +13,7 @@ type TurnPhase = 'placing' | 'tokenWindow' | 'revealed' | 'waitingForGuest'
 export default function GameScreen() {
   const navigate = useNavigate()
   const { state, resolveTurn, skipSong, nextTurn, drawCard, isPlacementCorrect } = useGame()
-  const { role, broadcast, onGuestMessage } = useMultiplayer()
+  const { role, broadcast, onGuestMessage, connPlayerMap } = useMultiplayer()
 
   const isMultiplayer = state.gameMode === 'multiplayer'
   const isHost = role === 'host'
@@ -103,7 +103,7 @@ export default function GameScreen() {
   }, [isHost, turnPhase, wasCorrect, stealResult, broadcast])
 
   // Handle guest messages (multiplayer host only)
-  const handleGuestMessage = useCallback((_connId: string, message: GuestMessage) => {
+  const handleGuestMessage = useCallback((connId: string, message: GuestMessage) => {
     if (message.type === 'CONFIRM_PLACEMENT') {
       // Process guest's placement same as local
       pendingCard.current = state.currentCard
@@ -127,7 +127,7 @@ export default function GameScreen() {
           timeline: currentPlayer.timeline,
           card: state.currentCard!,
           timeRemaining: 5,
-          takenPositions: [],
+          takenPositions: [position],
         })
       } else {
         const sortedTimeline = [...currentPlayer.timeline].sort((a, b) => a.year - b.year)
@@ -147,16 +147,18 @@ export default function GameScreen() {
       setTurnPhase('placing')
     } else if (message.type === 'USE_TOKEN') {
       // Guest using a token during token window
+      const guestPlayerIndex = connPlayerMap.current.get(connId)
+      if (guestPlayerIndex === undefined) return
       setTokenPlacements((prev) => {
         const next = new Map(prev)
-        next.set(state.currentPlayerIndex, message.position) // TODO: map connId to playerIndex
+        next.set(guestPlayerIndex, message.position)
         return next
       })
     } else if (message.type === 'PENDING_POSITION') {
       // Guest selecting a position — broadcast to all other guests
       broadcast({ type: 'PENDING_PLACEMENT', position: message.position, timeline: currentPlayer.timeline })
     }
-  }, [state, currentPlayer, broadcast, isPlacementCorrect, resolveTurn, skipSong])
+  }, [state, currentPlayer, broadcast, isPlacementCorrect, resolveTurn, skipSong, connPlayerMap])
 
   useEffect(() => {
     if (isHost) {
@@ -184,9 +186,12 @@ export default function GameScreen() {
       }
     }
 
+    // Exclude the active player's confirmed position from valid steal positions
+    const stealablePositions = correctPositions.filter(p => p !== confirmedPosition)
+
     let steal: { playerIndex: number; playerName: string } | null = null
     for (const tp of placements) {
-      if (correctPositions.includes(tp.position)) {
+      if (stealablePositions.includes(tp.position)) {
         steal = { playerIndex: tp.playerIndex, playerName: state.players[tp.playerIndex].name }
         break
       }
@@ -309,7 +314,7 @@ export default function GameScreen() {
           timeline: currentPlayer.timeline,
           card: state.currentCard!,
           timeRemaining: 5,
-          takenPositions: [],
+          takenPositions: [pendingPosition],
         })
       }
     } else {

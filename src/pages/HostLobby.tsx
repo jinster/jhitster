@@ -8,7 +8,7 @@ import type { Song, GuestMessage } from '../types'
 export default function HostLobby() {
   const navigate = useNavigate()
   const { setPacks, setPlayers } = useGame()
-  const { startHost, roomCode, isReady, connectedNames, sendTo, onGuestMessage } = useMultiplayer()
+  const { startHost, roomCode, isReady, connectedNames, sendTo, onGuestMessage, connPlayerMap } = useMultiplayer()
 
   const [selectedPacks, setSelectedPacks] = useState<Set<string>>(new Set([packs[0].meta.id]))
   const [hostName, setHostName] = useState('')
@@ -34,6 +34,7 @@ export default function HostLobby() {
         return next
       })
       const idx = guestCountRef.current
+      connPlayerMap.current.set(connId, idx)
       sendTo(connId, {
         type: 'PLAYER_ASSIGNMENT',
         playerIndex: idx,

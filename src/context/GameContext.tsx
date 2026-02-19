@@ -190,10 +190,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const correct = isPlacementCorrect(sortedTimeline, card, action.position);
       const correctPositions = findCorrectPositions(sortedTimeline, card);
 
-      // Find the first token placement on a correct position
+      // Find the first token placement on a correct position (excluding the active player's position)
+      const stealablePositions = correctPositions.filter(p => p !== action.position);
       let winningSteal: { playerIndex: number; position: number } | null = null;
       for (const tp of action.tokenPlacements) {
-        if (correctPositions.includes(tp.position)) {
+        if (stealablePositions.includes(tp.position)) {
           winningSteal = tp;
           break;
         }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMultiplayer } from '../context/MultiplayerContext'
 import Timeline from '../components/Timeline'
@@ -9,7 +9,7 @@ type GuestPhase = 'waiting' | 'yourTurn' | 'tokenWindow' | 'turnResult' | 'gameO
 
 export default function GuestController() {
   const navigate = useNavigate()
-  const { guestConnected, guestError, lastHostMessage, send, playerIndex } = useMultiplayer()
+  const { guestConnected, guestError, onHostMessage, send, playerIndex } = useMultiplayer()
   const playerName = sessionStorage.getItem('jhitster-name') ?? ''
 
   const [phase, setPhase] = useState<GuestPhase>('waiting')
@@ -32,17 +32,19 @@ export default function GuestController() {
   const [activeTimeline, setActiveTimeline] = useState<Song[]>([])
   const [remotePendingPosition, setRemotePendingPosition] = useState<number | null>(null)
 
-  // Handle host messages
-  useEffect(() => {
-    if (!lastHostMessage) return
+  // Use a ref to track phase inside the callback (avoids stale closure)
+  const phaseRef = useRef(phase)
+  phaseRef.current = phase
 
-    const msg: HostMessage = lastHostMessage
-
+  // Handle host messages via callback ref — guarantees every message is processed
+  const handleHostMessage = useCallback((msg: HostMessage) => {
     switch (msg.type) {
       case 'GAME_STATE':
         setGameInfo({ players: msg.players, currentPlayerIndex: msg.currentPlayerIndex })
         // Only go to waiting if we're not in an active interaction phase
-        if (msg.currentPlayerIndex !== playerIndex && phase !== 'tokenWindow') {
+        if (msg.currentPlayerIndex !== playerIndex &&
+            phaseRef.current !== 'tokenWindow' &&
+            phaseRef.current !== 'turnResult') {
           setPhase('waiting')
         }
         break
@@ -90,7 +92,11 @@ export default function GuestController() {
         setActiveTimeline(msg.timeline)
         break
     }
-  }, [lastHostMessage, playerIndex, phase])
+  }, [playerIndex])
+
+  useEffect(() => {
+    onHostMessage.current = handleHostMessage
+  }, [handleHostMessage, onHostMessage])
 
   // Local countdown timer for steal window
   useEffect(() => {
@@ -139,6 +145,8 @@ export default function GuestController() {
       // Notify host so it can broadcast to other guests
       send({ type: 'PENDING_POSITION', position })
     } else if (phase === 'tokenWindow' && tokens > 0 && !tokenUsed) {
+      // Block positions already taken by the active player
+      if (takenPositions.includes(position)) return
       send({ type: 'USE_TOKEN', position })
       setTokenUsed(true)
     }

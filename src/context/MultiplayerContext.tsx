@@ -24,11 +24,13 @@ interface MultiplayerContextValue {
   sendTo: (connId: string, message: HostMessage) => void
   onGuestMessage: React.MutableRefObject<((connId: string, message: GuestMessage) => void) | null>
   connectedNames: string[]
+  connPlayerMap: React.MutableRefObject<Map<string, number>>
 
   // Guest
   joinRoom: (code: string, name: string) => void
   send: (message: GuestMessage) => void
   lastHostMessage: HostMessage | null
+  onHostMessage: React.MutableRefObject<((message: HostMessage) => void) | null>
   guestConnected: boolean
   guestError: string | null
 
@@ -52,6 +54,8 @@ export function MultiplayerProvider({ children }: { children: ReactNode }) {
   const connectionsRef = useRef<Map<string, DataConnection>>(new Map())
   const connRef = useRef<DataConnection | null>(null)
   const onGuestMessage = useRef<((connId: string, message: GuestMessage) => void) | null>(null)
+  const onHostMessage = useRef<((message: HostMessage) => void) | null>(null)
+  const connPlayerMap = useRef<Map<string, number>>(new Map())
 
   const startHost = useCallback(() => {
     // Don't create a new peer if one already exists
@@ -112,7 +116,9 @@ export function MultiplayerProvider({ children }: { children: ReactNode }) {
       })
 
       conn.on('data', (data) => {
-        setLastHostMessage(data as HostMessage)
+        const msg = data as HostMessage
+        setLastHostMessage(msg)
+        onHostMessage.current?.(msg)
       })
 
       conn.on('close', () => {
@@ -181,9 +187,11 @@ export function MultiplayerProvider({ children }: { children: ReactNode }) {
         sendTo,
         onGuestMessage,
         connectedNames,
+        connPlayerMap,
         joinRoom,
         send,
         lastHostMessage,
+        onHostMessage,
         guestConnected,
         guestError,
         disconnect,

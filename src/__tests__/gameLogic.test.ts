@@ -292,11 +292,13 @@ describe('gameReducer', () => {
     });
 
     it('correct placement, successful steal — card goes to stealer', () => {
+      // Use a timeline with a same-year card so there are two valid positions
+      const song1980b: Song = { id: 6, title: 'Song 1980b', artist: 'F', year: 1980 };
       const state: GameState = {
         ...initialState,
         phase: 'playing',
         players: [
-          { name: 'Alice', timeline: [song1960, song2000], hand: [], tokens: 2 },
+          { name: 'Alice', timeline: [song1960, song1980b, song2000], hand: [], tokens: 2 },
           { name: 'Bob', timeline: [song1970], hand: [], tokens: 2 },
         ],
         deck: [song1990],
@@ -304,14 +306,15 @@ describe('gameReducer', () => {
         currentPlayerIndex: 0,
       };
 
+      // Alice places at position 1, Bob steals at position 2 (both correct, different positions)
       const next = gameReducer(state, {
         type: 'RESOLVE_TURN',
-        position: 1, // correct
-        tokenPlacements: [{ playerIndex: 1, position: 1 }], // Bob steals at position 1 (also correct)
+        position: 1,
+        tokenPlacements: [{ playerIndex: 1, position: 2 }],
       });
 
       // Card goes to Bob (stealer), not Alice
-      expect(next.players[0].timeline).toHaveLength(2); // Alice still has 2
+      expect(next.players[0].timeline).toHaveLength(3); // Alice still has 3
       expect(next.players[1].timeline).toHaveLength(2); // Bob now has 2 (song1970 + song1980)
       expect(next.players[1].tokens).toBe(1); // Bob spent a token
     });
@@ -404,11 +407,13 @@ describe('gameReducer', () => {
         year: 1950 + i * 5,
       }));
 
+      // Use a timeline with a same-year card so there are two valid positions
+      const song1980b: Song = { id: 100, title: 'Song 1980b', artist: 'F', year: 1980 };
       const state: GameState = {
         ...initialState,
         phase: 'playing',
         players: [
-          { name: 'Alice', timeline: [song1960, song2000], hand: [], tokens: 2 },
+          { name: 'Alice', timeline: [song1960, song1980b, song2000], hand: [], tokens: 2 },
           { name: 'Bob', timeline: timelineCards, hand: [], tokens: 2 },
         ],
         deck: [],
@@ -417,10 +422,11 @@ describe('gameReducer', () => {
         targetTimelineLength: 10,
       };
 
+      // Alice places at position 1, Bob steals at position 2 (different valid position)
       const next = gameReducer(state, {
         type: 'RESOLVE_TURN',
         position: 1,
-        tokenPlacements: [{ playerIndex: 1, position: 1 }],
+        tokenPlacements: [{ playerIndex: 1, position: 2 }],
       });
 
       expect(next.phase).toBe('victory');
