@@ -7,6 +7,10 @@ import PlayerSetup from './pages/PlayerSetup'
 import GameInitScreen from './pages/GameInitScreen'
 import GameScreen from './pages/GameScreen'
 import VictoryPage from './pages/VictoryPage'
+import MultiplayerChoice from './pages/MultiplayerChoice'
+import HostLobby from './pages/HostLobby'
+import JoinGame from './pages/JoinGame'
+import GuestController from './pages/GuestController'
 
 export default function App() {
   return (
@@ -19,6 +23,10 @@ export default function App() {
           <Route path="/deal" element={<GameInitScreen />} />
           <Route path="/play" element={<GameScreen />} />
           <Route path="/victory" element={<VictoryPage />} />
+          <Route path="/multiplayer" element={<MultiplayerChoice />} />
+          <Route path="/host" element={<HostLobby />} />
+          <Route path="/join" element={<JoinGame />} />
+          <Route path="/guest-play" element={<GuestController />} />
         </Routes>
       </GameProvider>
     </ErrorBoundary>

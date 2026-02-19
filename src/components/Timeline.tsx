@@ -9,6 +9,7 @@ interface TimelineProps {
   highlightPosition?: number | null;
   highlightCorrect?: boolean | null;
   pendingPosition?: number | null;
+  tokenPositions?: Map<number, string>;
 }
 
 export default function Timeline({
@@ -19,6 +20,7 @@ export default function Timeline({
   highlightPosition,
   highlightCorrect,
   pendingPosition,
+  tokenPositions,
 }: TimelineProps) {
   const sorted = [...cards].sort((a, b) => a.year - b.year);
 
@@ -31,6 +33,7 @@ export default function Timeline({
           highlight={highlightPosition === 0}
           correct={highlightPosition === 0 ? highlightCorrect : null}
           pending={pendingPosition === 0}
+          tokenPlayer={tokenPositions?.get(0)}
         />
       )}
 
@@ -43,6 +46,7 @@ export default function Timeline({
               highlight={highlightPosition === i}
               correct={highlightPosition === i ? highlightCorrect : null}
               pending={pendingPosition === i}
+              tokenPlayer={tokenPositions?.get(i)}
             />
           )}
           <SongCard card={card} faceUp={faceUp} />
@@ -56,6 +60,7 @@ export default function Timeline({
           highlight={highlightPosition === sorted.length}
           correct={highlightPosition === sorted.length ? highlightCorrect : null}
           pending={pendingPosition === sorted.length}
+          tokenPlayer={tokenPositions?.get(sorted.length)}
         />
       )}
     </div>
@@ -95,27 +100,37 @@ function DropZone({
   highlight,
   correct,
   pending,
+  tokenPlayer,
 }: {
   position: number;
   onClick?: (position: number) => void;
   highlight?: boolean;
   correct?: boolean | null;
   pending?: boolean;
+  tokenPlayer?: string;
 }) {
   let borderColor = 'border-dashed border-gray-600 hover:border-purple-400';
+  if (tokenPlayer) borderColor = 'border-solid border-yellow-500 bg-yellow-500/10';
   if (pending) borderColor = 'border-solid border-purple-500 bg-purple-500/20';
   if (highlight && correct === true) borderColor = 'border-solid border-green-500 bg-green-500/10';
   if (highlight && correct === false) borderColor = 'border-solid border-red-500 bg-red-500/10';
 
+  const isLocked = !!tokenPlayer;
+
   return (
     <button
-      onClick={() => onClick?.(position)}
-      className={`w-full h-12 sm:w-12 sm:h-24 border-2 rounded-lg shrink-0 transition-colors cursor-pointer touch-manipulation flex items-center justify-center ${borderColor}`}
-      aria-label={`Place card at position ${position}`}
+      onClick={() => !isLocked && onClick?.(position)}
+      className={`w-full h-12 sm:w-12 sm:h-24 border-2 rounded-lg shrink-0 transition-colors ${isLocked ? 'cursor-not-allowed' : 'cursor-pointer'} touch-manipulation flex items-center justify-center ${borderColor}`}
+      aria-label={tokenPlayer ? `Position ${position} claimed by ${tokenPlayer}` : `Place card at position ${position}`}
+      disabled={isLocked}
     >
-      <span className="text-xs text-gray-500 sm:hidden">
-        {pending ? 'Selected' : 'Tap to place here'}
-      </span>
+      {tokenPlayer ? (
+        <span className="text-xs font-bold text-yellow-400">{tokenPlayer[0]}</span>
+      ) : (
+        <span className="text-xs text-gray-500 sm:hidden">
+          {pending ? 'Selected' : 'Tap to place here'}
+        </span>
+      )}
     </button>
   );
 }

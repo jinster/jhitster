@@ -10,6 +10,7 @@ export interface Player {
   name: string;
   timeline: Song[];
   hand: Song[];
+  tokens: number;
 }
 
 export type GamePhase = 'setup' | 'playing' | 'victory';
@@ -22,3 +23,27 @@ export interface SongPack {
   yearRange: [number, number];
   hasAudio: boolean;
 }
+
+// ── Multiplayer message types ──────────────────────────
+
+export interface StealResult {
+  playerIndex: number;
+  playerName: string;
+}
+
+// Host → Guest messages
+export type HostMessage =
+  | { type: 'GAME_STATE'; players: Player[]; currentPlayerIndex: number; phase: GamePhase; targetTimelineLength: number; deckSize: number }
+  | { type: 'YOUR_TURN'; timeline: Song[]; currentCard: Song | null; tokens: number }
+  | { type: 'TOKEN_WINDOW'; timeline: Song[]; card: Song; timeRemaining: number; takenPositions: number[] }
+  | { type: 'TURN_RESULT'; wasCorrect: boolean; card: Song; stealResult: StealResult | null }
+  | { type: 'GAME_OVER'; winner: string }
+  | { type: 'PLAYER_ASSIGNMENT'; playerIndex: number; playerName: string }
+
+// Guest → Host messages
+export type GuestMessage =
+  | { type: 'CONFIRM_PLACEMENT'; position: number }
+  | { type: 'CANCEL_PLACEMENT' }
+  | { type: 'USE_TOKEN'; position: number }
+  | { type: 'SKIP_SONG' }
+  | { type: 'JOIN'; requestedName: string }
