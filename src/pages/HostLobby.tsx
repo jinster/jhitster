@@ -7,8 +7,8 @@ import type { Song, GuestMessage } from '../types'
 
 export default function HostLobby() {
   const navigate = useNavigate()
-  const { setPacks, setPlayers, dealInitialCards, state } = useGame()
-  const { startHost, roomCode, isReady, connectedNames, broadcast, sendTo, onGuestMessage } = useMultiplayer()
+  const { setPacks, setPlayers } = useGame()
+  const { startHost, roomCode, isReady, connectedNames, sendTo, onGuestMessage } = useMultiplayer()
 
   const [selectedPacks, setSelectedPacks] = useState<Set<string>>(new Set([packs[0].meta.id]))
   const [hostName, setHostName] = useState('')
@@ -33,8 +33,7 @@ export default function HostLobby() {
         guestCountRef.current = next.size
         return next
       })
-      // Send assignment
-      const idx = guestCountRef.current // Host is 0, guests start at 1
+      const idx = guestCountRef.current
       sendTo(connId, {
         type: 'PLAYER_ASSIGNMENT',
         playerIndex: idx,
@@ -74,32 +73,11 @@ export default function HostLobby() {
     setPhase('waiting')
   }
 
-  // Use a ref to get updated state inside the timeout
-  const stateRef = useRef(state)
-  stateRef.current = state
-
   const handleStartGame = () => {
     const allNames = [hostName.trim(), ...Array.from(guestNames.values())]
     setPlayers(allNames)
-
-    // Small delay to let state update, then deal and navigate
-    setTimeout(() => {
-      dealInitialCards(0)
-
-      // Use a second timeout to let dealInitialCards settle
-      setTimeout(() => {
-        const s = stateRef.current
-        broadcast({
-          type: 'GAME_STATE',
-          players: s.players,
-          currentPlayerIndex: s.currentPlayerIndex,
-          phase: s.phase,
-          targetTimelineLength: s.targetTimelineLength,
-          deckSize: s.deck.length,
-        })
-        navigate('/deal')
-      }, 50)
-    }, 50)
+    // Navigate to /deal — GameInitScreen handles dealing + broadcasting
+    navigate('/deal')
   }
 
   if (phase === 'config') {
@@ -163,7 +141,6 @@ export default function HostLobby() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
       <h1 className="text-4xl font-bold mb-4">Waiting for Players</h1>
 
-      {/* Room code */}
       <div className="mb-8 text-center">
         <p className="text-gray-400 text-sm mb-2">Share this room code:</p>
         <button
@@ -177,7 +154,6 @@ export default function HostLobby() {
         </p>
       </div>
 
-      {/* Connected players */}
       <div className="w-full max-w-md mb-8">
         <h2 className="text-lg font-semibold mb-3">Players</h2>
         <div className="flex flex-col gap-2">

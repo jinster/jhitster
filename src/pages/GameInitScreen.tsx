@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGame } from '../context/GameContext'
+import { useMultiplayer } from '../context/MultiplayerContext'
 
 export default function GameInitScreen() {
   const navigate = useNavigate()
   const { state, dealInitialCards } = useGame()
+  const { role, broadcast } = useMultiplayer()
   const dealtRef = useRef(false)
+  const broadcastedRef = useRef(false)
   const [showCards, setShowCards] = useState<number[]>([])
 
   useEffect(() => {
@@ -21,6 +24,21 @@ export default function GameInitScreen() {
       dealInitialCards(0)
     }
   }, [state.players.length, dealInitialCards, navigate])
+
+  // Broadcast game state to guests once dealing is complete
+  useEffect(() => {
+    if (role === 'host' && state.phase === 'playing' && !broadcastedRef.current) {
+      broadcastedRef.current = true
+      broadcast({
+        type: 'GAME_STATE',
+        players: state.players,
+        currentPlayerIndex: state.currentPlayerIndex,
+        phase: state.phase,
+        targetTimelineLength: state.targetTimelineLength,
+        deckSize: state.deck.length,
+      })
+    }
+  }, [role, state.phase, state.players, state.currentPlayerIndex, state.targetTimelineLength, state.deck.length, broadcast])
 
   // Stagger card reveal animation
   useEffect(() => {

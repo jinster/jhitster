@@ -2,25 +2,32 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useGame } from '../context/GameContext'
+import { useMultiplayer } from '../context/MultiplayerContext'
 import Timeline from '../components/Timeline'
 import AudioPlayer from '../components/AudioPlayer'
 import { useItunesPreview } from '../hooks/useItunesPreview'
+import type { GuestMessage } from '../types'
 
-type TurnPhase = 'placing' | 'tokenWindow' | 'revealed'
+type TurnPhase = 'placing' | 'tokenWindow' | 'revealed' | 'waitingForGuest'
 
 export default function GameScreen() {
   const navigate = useNavigate()
   const { state, resolveTurn, skipSong, nextTurn, drawCard, isPlacementCorrect } = useGame()
+  const { role, broadcast, onGuestMessage } = useMultiplayer()
+
+  const isMultiplayer = state.gameMode === 'multiplayer'
+  const isHost = role === 'host'
+  const isGuestTurn = isMultiplayer && isHost && state.currentPlayerIndex !== 0
+
   const [turnPhase, setTurnPhase] = useState<TurnPhase>('placing')
   const [pendingPosition, setPendingPosition] = useState<number | null>(null)
   const [placedPosition, setPlacedPosition] = useState<number | null>(null)
   const [wasCorrect, setWasCorrect] = useState<boolean | null>(null)
-  // Store the current card info before dispatch clears it
   const pendingCard = useRef(state.currentCard)
 
   // Token window state
   const [confirmedPosition, setConfirmedPosition] = useState<number | null>(null)
-  const [tokenPlacements, setTokenPlacements] = useState<Map<number, number>>(new Map()) // playerIndex → position
+  const [tokenPlacements, setTokenPlacements] = useState<Map<number, number>>(new Map())
   const [tokenTimeRemaining, setTokenTimeRemaining] = useState(5)
   const [selectedTokenPlayer, setSelectedTokenPlayer] = useState<number | null>(null)
   const [stealResult, setStealResult] = useState<{ playerIndex: number; playerName: string } | null>(null)
@@ -47,10 +54,99 @@ export default function GameScreen() {
 
   // Keep pendingCard in sync when a new card is drawn
   useEffect(() => {
-    if (state.currentCard && turnPhase === 'placing') {
+    if (state.currentCard && (turnPhase === 'placing' || turnPhase === 'waitingForGuest')) {
       pendingCard.current = state.currentCard
     }
   }, [state.currentCard, turnPhase])
+
+  // Set waitingForGuest when it's a guest's turn in multiplayer
+  useEffect(() => {
+    if (isGuestTurn && turnPhase === 'placing') {
+      setTurnPhase('waitingForGuest')
+      // Send YOUR_TURN to all guests (they check their own playerIndex)
+      if (isHost) {
+        broadcast({
+          type: 'YOUR_TURN',
+          timeline: currentPlayer.timeline,
+          currentCard: state.currentCard,
+          tokens: currentPlayer.tokens,
+        })
+      }
+    }
+  }, [isGuestTurn, turnPhase, isHost, broadcast, currentPlayer, state.currentCard])
+
+  // Broadcast state after each turn resolves
+  const broadcastStateRef = useRef(broadcast)
+  broadcastStateRef.current = broadcast
+  useEffect(() => {
+    if (isHost && turnPhase === 'revealed') {
+      broadcastStateRef.current({
+        type: 'TURN_RESULT',
+        wasCorrect: wasCorrect!,
+        card: pendingCard.current!,
+        stealResult: stealResult,
+      })
+    }
+  }, [isHost, turnPhase, wasCorrect, stealResult])
+
+  // Handle guest messages (multiplayer host only)
+  const handleGuestMessage = useCallback((_connId: string, message: GuestMessage) => {
+    if (message.type === 'CONFIRM_PLACEMENT') {
+      // Process guest's placement same as local
+      pendingCard.current = state.currentCard
+      const position = message.position
+
+      const hasTokenPlayers = state.players.some(
+        (p, i) => i !== state.currentPlayerIndex && p.tokens > 0
+      )
+
+      if (hasTokenPlayers) {
+        setConfirmedPosition(position)
+        setTokenPlacements(new Map())
+        setTokenTimeRemaining(5)
+        setSelectedTokenPlayer(null)
+        setPendingPosition(null)
+        setTurnPhase('tokenWindow')
+
+        // Broadcast token window to guests
+        broadcast({
+          type: 'TOKEN_WINDOW',
+          timeline: currentPlayer.timeline,
+          card: state.currentCard!,
+          timeRemaining: 5,
+          takenPositions: [],
+        })
+      } else {
+        const sortedTimeline = [...currentPlayer.timeline].sort((a, b) => a.year - b.year)
+        const correct = isPlacementCorrect(sortedTimeline, state.currentCard!, position)
+
+        setWasCorrect(correct)
+        setPlacedPosition(position)
+        setConfirmedPosition(position)
+        setStealResult(null)
+
+        resolveTurn(position, [])
+        setTurnPhase('revealed')
+      }
+    } else if (message.type === 'SKIP_SONG') {
+      skipSong()
+      // Re-send YOUR_TURN with new card (will be sent on next render via the isGuestTurn effect)
+      setTurnPhase('placing')
+    } else if (message.type === 'USE_TOKEN') {
+      // Guest using a token during token window
+      setTokenPlacements((prev) => {
+        const next = new Map(prev)
+        next.set(state.currentPlayerIndex, message.position) // TODO: map connId to playerIndex
+        return next
+      })
+    }
+  }, [state, currentPlayer, broadcast, isPlacementCorrect, resolveTurn, skipSong])
+
+  useEffect(() => {
+    if (isHost) {
+      onGuestMessage.current = handleGuestMessage
+    }
+  }, [isHost, handleGuestMessage, onGuestMessage])
 
   // Token window countdown
   const resolveTokenWindow = useCallback(() => {
@@ -59,13 +155,11 @@ export default function GameScreen() {
     const sortedTimeline = [...currentPlayer.timeline].sort((a, b) => a.year - b.year)
     const correct = isPlacementCorrect(sortedTimeline, pendingCard.current!, confirmedPosition)
 
-    // Convert tokenPlacements map to array
     const placements = Array.from(tokenPlacements.entries()).map(([playerIndex, position]) => ({
       playerIndex,
       position,
     }))
 
-    // Determine steal result before dispatching
     const card = pendingCard.current!
     const correctPositions: number[] = []
     for (let i = 0; i <= sortedTimeline.length; i++) {
@@ -105,7 +199,7 @@ export default function GameScreen() {
     return () => clearInterval(timer)
   }, [turnPhase, tokenTimeRemaining, resolveTokenWindow])
 
-  if (!currentPlayer || (!state.currentCard && turnPhase === 'placing')) {
+  if (!currentPlayer || (!state.currentCard && (turnPhase === 'placing' || turnPhase === 'waitingForGuest'))) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white gap-4 p-4">
         <p className="text-gray-400 text-lg">No cards remaining in the deck!</p>
@@ -120,19 +214,17 @@ export default function GameScreen() {
     )
   }
 
-  // Use pendingCard during tokenWindow/revealed phases (since dispatch clears currentCard)
-  const displayCard = turnPhase === 'placing' ? state.currentCard! : pendingCard.current!
+  const displayCard = (turnPhase === 'placing' || turnPhase === 'waitingForGuest') ? state.currentCard! : pendingCard.current!
 
-  // On-demand iTunes preview lookup
-  const itunesLookupSong = turnPhase === 'placing' ? displayCard : null
+  // On-demand iTunes preview lookup — always look up audio on host (even for guest turns)
+  const itunesLookupSong = (turnPhase === 'placing' || turnPhase === 'waitingForGuest') ? displayCard : null
   const { previewUrl: itunesPreviewUrl, loading: itunesLoading } = useItunesPreview(itunesLookupSong)
   const effectivePreviewUrl = displayCard.previewUrl || itunesPreviewUrl
 
   const handleDropZoneClick = (position: number) => {
-    if (turnPhase === 'placing') {
+    if (turnPhase === 'placing' && !isGuestTurn) {
       setPendingPosition(position)
     } else if (turnPhase === 'tokenWindow' && selectedTokenPlayer !== null) {
-      // Place token for the selected player
       setTokenPlacements((prev) => {
         const next = new Map(prev)
         next.set(selectedTokenPlayer, position)
@@ -142,7 +234,6 @@ export default function GameScreen() {
     }
   }
 
-  // Check if any non-active player has tokens
   const hasTokenPlayers = state.players.some(
     (p, i) => i !== state.currentPlayerIndex && p.tokens > 0
   )
@@ -155,13 +246,21 @@ export default function GameScreen() {
     setPendingPosition(null)
 
     if (hasTokenPlayers) {
-      // Enter token window
       setTokenPlacements(new Map())
       setTokenTimeRemaining(5)
       setSelectedTokenPlayer(null)
       setTurnPhase('tokenWindow')
+
+      if (isHost) {
+        broadcast({
+          type: 'TOKEN_WINDOW',
+          timeline: currentPlayer.timeline,
+          card: state.currentCard!,
+          timeRemaining: 5,
+          takenPositions: [],
+        })
+      }
     } else {
-      // No token players — resolve immediately with no token placements
       const sortedTimeline = [...currentPlayer.timeline].sort((a, b) => a.year - b.year)
       const correct = isPlacementCorrect(sortedTimeline, state.currentCard!, pendingPosition)
 
@@ -194,9 +293,19 @@ export default function GameScreen() {
     setStealResult(null)
 
     if (state.phase === 'victory') {
+      if (isHost) {
+        broadcast({ type: 'GAME_OVER', winner: state.winner! })
+      }
       navigate('/victory')
     } else {
       nextTurn()
+      // Broadcast updated state after next turn
+      if (isHost) {
+        // Use timeout to let nextTurn dispatch settle
+        setTimeout(() => {
+          // The effect watching isGuestTurn will handle sending YOUR_TURN
+        }, 0)
+      }
     }
   }
 
@@ -204,7 +313,7 @@ export default function GameScreen() {
     drawCard()
   }
 
-  // Token positions map for timeline display (position → player name)
+  // Token positions map for timeline display
   const tokenPositionsMap = new Map<number, string>()
   if (turnPhase === 'tokenWindow') {
     tokenPlacements.forEach((position, playerIndex) => {
@@ -212,10 +321,12 @@ export default function GameScreen() {
     })
   }
 
-  // Non-active players with tokens > 0 for token window
   const tokenEligiblePlayers = state.players
     .map((p, i) => ({ ...p, index: i }))
     .filter((p) => p.index !== state.currentPlayerIndex && p.tokens > 0)
+
+  // Host is allowed to interact only on their own turn (player 0) or in local mode
+  const hostCanPlace = !isMultiplayer || !isHost || state.currentPlayerIndex === 0
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-900 text-white p-4">
@@ -224,7 +335,6 @@ export default function GameScreen() {
         <h2 className="text-2xl sm:text-3xl font-bold text-purple-300">
           {currentPlayer.name}'s Turn
         </h2>
-        {/* Token display for all players */}
         <div className="flex justify-center gap-3 mt-2 flex-wrap">
           {state.players.map((player, i) => (
             <span
@@ -244,7 +354,6 @@ export default function GameScreen() {
       {/* Current Card Area */}
       <div className="w-full max-w-lg mb-6">
         {turnPhase === 'revealed' ? (
-          /* Revealed: show full card info */
           <motion.div
             key={displayCard.id}
             initial={{ opacity: 0, y: -20 }}
@@ -266,7 +375,6 @@ export default function GameScreen() {
             </motion.p>
           </motion.div>
         ) : turnPhase === 'tokenWindow' ? (
-          /* Token window: show card title but no year */
           <motion.div
             key="token-window"
             initial={{ opacity: 0, y: -20 }}
@@ -282,8 +390,27 @@ export default function GameScreen() {
             </div>
             <p className="text-2xl font-bold text-yellow-400">{tokenTimeRemaining}s</p>
           </motion.div>
+        ) : turnPhase === 'waitingForGuest' ? (
+          <motion.div
+            key="waiting-guest"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full bg-gray-800 border-2 border-indigo-500 rounded-xl flex flex-col items-center justify-center p-4"
+          >
+            <p className="text-sm text-indigo-400 mb-3">Waiting for {currentPlayer.name} to place...</p>
+            <p className="text-sm text-gray-500 mb-3">Audio plays here for everyone to hear</p>
+            {itunesLoading ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-gray-400 text-sm">Loading preview...</p>
+              </div>
+            ) : effectivePreviewUrl ? (
+              <AudioPlayer src={effectivePreviewUrl} />
+            ) : (
+              <p className="text-gray-400">No preview available</p>
+            )}
+          </motion.div>
         ) : (
-          /* Placing: show audio player, no metadata */
           <motion.div
             key={displayCard.id}
             initial={{ opacity: 0, y: -20 }}
@@ -338,7 +465,7 @@ export default function GameScreen() {
       )}
 
       {/* Instructions */}
-      {turnPhase === 'placing' && (
+      {turnPhase === 'placing' && hostCanPlace && (
         <p className="text-gray-400 text-sm mb-2">
           {pendingPosition !== null
             ? 'Confirm placement or tap another slot'
@@ -377,8 +504,8 @@ export default function GameScreen() {
         </div>
       )}
 
-      {/* Skip Song button (during placing phase) */}
-      {turnPhase === 'placing' && currentPlayer.tokens > 0 && pendingPosition === null && (
+      {/* Skip Song button (host's turn only) */}
+      {turnPhase === 'placing' && hostCanPlace && currentPlayer.tokens > 0 && pendingPosition === null && (
         <button
           onClick={handleSkipSong}
           className="mb-3 px-4 py-2 bg-gray-700 hover:bg-gray-600 active:bg-gray-800 text-yellow-400 text-sm font-semibold rounded-lg transition-colors cursor-pointer touch-manipulation"
@@ -388,7 +515,7 @@ export default function GameScreen() {
       )}
 
       {/* Confirm / Cancel buttons */}
-      {turnPhase === 'placing' && pendingPosition !== null && (
+      {turnPhase === 'placing' && hostCanPlace && pendingPosition !== null && (
         <div className="flex gap-3 mb-3 w-full max-w-lg">
           <button
             onClick={confirmPlacement}
@@ -413,7 +540,7 @@ export default function GameScreen() {
         <Timeline
           cards={currentPlayer.timeline}
           faceUp
-          showDropZones={turnPhase === 'placing' || turnPhase === 'tokenWindow'}
+          showDropZones={(turnPhase === 'placing' && hostCanPlace) || turnPhase === 'tokenWindow'}
           onDropZoneClick={handleDropZoneClick}
           highlightPosition={turnPhase === 'revealed' ? placedPosition : null}
           highlightCorrect={turnPhase === 'revealed' ? wasCorrect : null}
