@@ -59,12 +59,27 @@ export default function GameScreen() {
     }
   }, [state.currentCard, turnPhase])
 
-  // Set waitingForGuest when it's a guest's turn in multiplayer
+  // Broadcast GAME_STATE + YOUR_TURN whenever the active player changes
+  const prevPlayerIndexRef = useRef(state.currentPlayerIndex)
   useEffect(() => {
-    if (isGuestTurn && turnPhase === 'placing') {
-      setTurnPhase('waitingForGuest')
-      // Send YOUR_TURN to all guests (they check their own playerIndex)
-      if (isHost) {
+    if (!isHost || !currentPlayer) return
+
+    // Broadcast GAME_STATE on every player index change
+    if (prevPlayerIndexRef.current !== state.currentPlayerIndex || (turnPhase === 'placing' && isGuestTurn)) {
+      prevPlayerIndexRef.current = state.currentPlayerIndex
+
+      broadcast({
+        type: 'GAME_STATE',
+        players: state.players,
+        currentPlayerIndex: state.currentPlayerIndex,
+        phase: state.phase,
+        targetTimelineLength: state.targetTimelineLength,
+        deckSize: state.deck.length,
+      })
+
+      // If it's a guest's turn, send YOUR_TURN and switch to waiting
+      if (isGuestTurn && turnPhase === 'placing') {
+        setTurnPhase('waitingForGuest')
         broadcast({
           type: 'YOUR_TURN',
           timeline: currentPlayer.timeline,
@@ -73,21 +88,19 @@ export default function GameScreen() {
         })
       }
     }
-  }, [isGuestTurn, turnPhase, isHost, broadcast, currentPlayer, state.currentCard])
+  }, [isHost, isGuestTurn, turnPhase, state.currentPlayerIndex, state.players, state.phase, state.currentCard, state.targetTimelineLength, state.deck.length, broadcast, currentPlayer])
 
-  // Broadcast state after each turn resolves
-  const broadcastStateRef = useRef(broadcast)
-  broadcastStateRef.current = broadcast
+  // Broadcast TURN_RESULT when a turn is revealed
   useEffect(() => {
-    if (isHost && turnPhase === 'revealed') {
-      broadcastStateRef.current({
+    if (isHost && turnPhase === 'revealed' && pendingCard.current) {
+      broadcast({
         type: 'TURN_RESULT',
         wasCorrect: wasCorrect!,
-        card: pendingCard.current!,
+        card: pendingCard.current,
         stealResult: stealResult,
       })
     }
-  }, [isHost, turnPhase, wasCorrect, stealResult])
+  }, [isHost, turnPhase, wasCorrect, stealResult, broadcast])
 
   // Handle guest messages (multiplayer host only)
   const handleGuestMessage = useCallback((_connId: string, message: GuestMessage) => {
@@ -299,13 +312,8 @@ export default function GameScreen() {
       navigate('/victory')
     } else {
       nextTurn()
-      // Broadcast updated state after next turn
-      if (isHost) {
-        // Use timeout to let nextTurn dispatch settle
-        setTimeout(() => {
-          // The effect watching isGuestTurn will handle sending YOUR_TURN
-        }, 0)
-      }
+      // The useEffect watching state.currentPlayerIndex will handle
+      // broadcasting GAME_STATE + YOUR_TURN after the re-render
     }
   }
 

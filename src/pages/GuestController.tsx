@@ -21,6 +21,7 @@ export default function GuestController() {
   const [tokenTimeline, setTokenTimeline] = useState<Song[]>([])
   const [tokenTimeRemaining, setTokenTimeRemaining] = useState(0)
   const [takenPositions, setTakenPositions] = useState<number[]>([])
+  const [tokenUsed, setTokenUsed] = useState(false)
 
   // Handle host messages
   useEffect(() => {
@@ -31,7 +32,8 @@ export default function GuestController() {
     switch (msg.type) {
       case 'GAME_STATE':
         setGameInfo({ players: msg.players, currentPlayerIndex: msg.currentPlayerIndex })
-        if (msg.currentPlayerIndex !== playerIndex) {
+        // Only go to waiting if we're not in an active interaction phase
+        if (msg.currentPlayerIndex !== playerIndex && phase !== 'tokenWindow') {
           setPhase('waiting')
         }
         break
@@ -47,6 +49,7 @@ export default function GuestController() {
         setTokenTimeline(msg.timeline)
         setTokenTimeRemaining(msg.timeRemaining)
         setTakenPositions(msg.takenPositions)
+        setTokenUsed(false)
         setPhase('tokenWindow')
         break
 
@@ -63,7 +66,25 @@ export default function GuestController() {
       case 'PLAYER_ASSIGNMENT':
         break
     }
-  }, [lastHostMessage, playerIndex])
+  }, [lastHostMessage, playerIndex, phase])
+
+  // Local countdown timer for steal window
+  useEffect(() => {
+    if (phase !== 'tokenWindow') return
+    if (tokenTimeRemaining <= 0) return
+
+    const timer = setInterval(() => {
+      setTokenTimeRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [phase, tokenTimeRemaining])
 
   if (!guestConnected && !guestError) {
     return (
@@ -91,8 +112,9 @@ export default function GuestController() {
   const handleDropZoneClick = (position: number) => {
     if (phase === 'yourTurn') {
       setPendingPosition(position)
-    } else if (phase === 'tokenWindow' && tokens > 0) {
+    } else if (phase === 'tokenWindow' && tokens > 0 && !tokenUsed) {
       send({ type: 'USE_TOKEN', position })
+      setTokenUsed(true)
     }
   }
 
@@ -165,7 +187,7 @@ export default function GuestController() {
           </div>
           <p className="text-center text-2xl font-bold text-yellow-400">{tokenTimeRemaining}s</p>
         </div>
-        {tokens > 0 ? (
+        {tokens > 0 && !tokenUsed ? (
           <>
             <p className="text-gray-400 text-sm mb-2">
               Tap a position to use your token ({tokens} remaining)
@@ -179,6 +201,8 @@ export default function GuestController() {
               />
             </div>
           </>
+        ) : tokenUsed ? (
+          <p className="text-yellow-400 font-semibold">Token placed! Waiting for result...</p>
         ) : (
           <p className="text-gray-500">No tokens remaining</p>
         )}
