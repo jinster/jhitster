@@ -10,6 +10,7 @@ interface TimelineProps {
   highlightCorrect?: boolean | null;
   pendingPosition?: number | null;
   tokenPositions?: Map<number, string>;
+  remotePendingPosition?: number | null;
 }
 
 export default function Timeline({
@@ -21,6 +22,7 @@ export default function Timeline({
   highlightCorrect,
   pendingPosition,
   tokenPositions,
+  remotePendingPosition,
 }: TimelineProps) {
   const sorted = [...cards].sort((a, b) => a.year - b.year);
 
@@ -34,6 +36,7 @@ export default function Timeline({
           correct={highlightPosition === 0 ? highlightCorrect : null}
           pending={pendingPosition === 0}
           tokenPlayer={tokenPositions?.get(0)}
+          remotePending={remotePendingPosition === 0}
         />
       )}
 
@@ -47,6 +50,7 @@ export default function Timeline({
               correct={highlightPosition === i ? highlightCorrect : null}
               pending={pendingPosition === i}
               tokenPlayer={tokenPositions?.get(i)}
+              remotePending={remotePendingPosition === i}
             />
           )}
           <SongCard card={card} faceUp={faceUp} />
@@ -61,6 +65,7 @@ export default function Timeline({
           correct={highlightPosition === sorted.length ? highlightCorrect : null}
           pending={pendingPosition === sorted.length}
           tokenPlayer={tokenPositions?.get(sorted.length)}
+          remotePending={remotePendingPosition === sorted.length}
         />
       )}
     </div>
@@ -101,6 +106,7 @@ function DropZone({
   correct,
   pending,
   tokenPlayer,
+  remotePending,
 }: {
   position: number;
   onClick?: (position: number) => void;
@@ -108,8 +114,10 @@ function DropZone({
   correct?: boolean | null;
   pending?: boolean;
   tokenPlayer?: string;
+  remotePending?: boolean;
 }) {
   let borderColor = 'border-dashed border-gray-600 hover:border-purple-400';
+  if (remotePending) borderColor = 'border-solid border-purple-400 animate-pulse bg-purple-400/10';
   if (tokenPlayer) borderColor = 'border-solid border-yellow-500 bg-yellow-500/10';
   if (pending) borderColor = 'border-solid border-purple-500 bg-purple-500/20';
   if (highlight && correct === true) borderColor = 'border-solid border-green-500 bg-green-500/10';

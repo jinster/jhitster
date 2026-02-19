@@ -2,9 +2,12 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 
 interface AudioPlayerProps {
   src: string
+  onPlayStateChange?: (playing: boolean) => void
+  externalPlaying?: boolean
+  readOnly?: boolean
 }
 
-export default function AudioPlayer({ src }: AudioPlayerProps) {
+export default function AudioPlayer({ src, onPlayStateChange, externalPlaying, readOnly }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -32,9 +35,25 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
     setProgress(0)
     setDuration(0)
 
-    // Autoplay
-    audio.play().then(() => setPlaying(true)).catch(() => {})
+    // Autoplay (skip if externally controlled)
+    if (externalPlaying === undefined) {
+      audio.play().then(() => setPlaying(true)).catch(() => {})
+    }
   }, [src])
+
+  // External play/pause control
+  useEffect(() => {
+    if (externalPlaying === undefined) return
+    const audio = audioRef.current
+    if (!audio) return
+
+    if (externalPlaying) {
+      audio.play().then(() => setPlaying(true)).catch(() => {})
+    } else {
+      audio.pause()
+      setPlaying(false)
+    }
+  }, [externalPlaying])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -62,8 +81,12 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
     if (playing) {
       audio.pause()
       setPlaying(false)
+      onPlayStateChange?.(false)
     } else {
-      audio.play().then(() => setPlaying(true)).catch(() => {})
+      audio.play().then(() => {
+        setPlaying(true)
+        onPlayStateChange?.(true)
+      }).catch(() => {})
     }
   }
 
@@ -81,22 +104,24 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
     <div className="flex flex-col items-center gap-3 w-full">
       <audio ref={audioRef} preload="auto" />
 
-      <button
-        onClick={togglePlay}
-        className="w-16 h-16 rounded-full bg-purple-600 hover:bg-purple-500 active:bg-purple-700 flex items-center justify-center transition-colors cursor-pointer touch-manipulation"
-        aria-label={playing ? 'Pause' : 'Play'}
-      >
-        {playing ? (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-            <rect x="6" y="4" width="4" height="16" rx="1" />
-            <rect x="14" y="4" width="4" height="16" rx="1" />
-          </svg>
-        ) : (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-            <polygon points="6,4 20,12 6,20" />
-          </svg>
-        )}
-      </button>
+      {!readOnly && (
+        <button
+          onClick={togglePlay}
+          className="w-16 h-16 rounded-full bg-purple-600 hover:bg-purple-500 active:bg-purple-700 flex items-center justify-center transition-colors cursor-pointer touch-manipulation"
+          aria-label={playing ? 'Pause' : 'Play'}
+        >
+          {playing ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+              <rect x="6" y="4" width="4" height="16" rx="1" />
+              <rect x="14" y="4" width="4" height="16" rx="1" />
+            </svg>
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+              <polygon points="6,4 20,12 6,20" />
+            </svg>
+          )}
+        </button>
+      )}
 
       <div
         className="w-full h-2 bg-gray-700 rounded-full cursor-pointer overflow-hidden"

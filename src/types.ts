@@ -39,6 +39,8 @@ export type HostMessage =
   | { type: 'TURN_RESULT'; wasCorrect: boolean; card: Song; stealResult: StealResult | null }
   | { type: 'GAME_OVER'; winner: string }
   | { type: 'PLAYER_ASSIGNMENT'; playerIndex: number; playerName: string }
+  | { type: 'AUDIO_SYNC'; previewUrl: string | null; playing: boolean }
+  | { type: 'PENDING_PLACEMENT'; position: number | null; timeline: Song[] }
 
 // Guest → Host messages
 export type GuestMessage =
@@ -47,3 +49,4 @@ export type GuestMessage =
   | { type: 'USE_TOKEN'; position: number }
   | { type: 'SKIP_SONG' }
   | { type: 'JOIN'; requestedName: string }
+  | { type: 'PENDING_POSITION'; position: number | null }

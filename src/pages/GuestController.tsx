@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMultiplayer } from '../context/MultiplayerContext'
 import Timeline from '../components/Timeline'
+import AudioPlayer from '../components/AudioPlayer'
 import type { HostMessage, Song, Player } from '../types'
 
 type GuestPhase = 'waiting' | 'yourTurn' | 'tokenWindow' | 'turnResult' | 'gameOver'
@@ -22,6 +23,14 @@ export default function GuestController() {
   const [tokenTimeRemaining, setTokenTimeRemaining] = useState(0)
   const [takenPositions, setTakenPositions] = useState<number[]>([])
   const [tokenUsed, setTokenUsed] = useState(false)
+
+  // Audio sync state
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [audioPlaying, setAudioPlaying] = useState(false)
+
+  // Remote pending placement state
+  const [activeTimeline, setActiveTimeline] = useState<Song[]>([])
+  const [remotePendingPosition, setRemotePendingPosition] = useState<number | null>(null)
 
   // Handle host messages
   useEffect(() => {
@@ -55,15 +64,30 @@ export default function GuestController() {
 
       case 'TURN_RESULT':
         setTurnResult({ wasCorrect: msg.wasCorrect, card: msg.card, stealResult: msg.stealResult })
+        setAudioUrl(null)
+        setAudioPlaying(false)
+        setRemotePendingPosition(null)
         setPhase('turnResult')
         break
 
       case 'GAME_OVER':
         setWinner(msg.winner)
+        setAudioUrl(null)
+        setAudioPlaying(false)
         setPhase('gameOver')
         break
 
       case 'PLAYER_ASSIGNMENT':
+        break
+
+      case 'AUDIO_SYNC':
+        setAudioUrl(msg.previewUrl)
+        setAudioPlaying(msg.playing)
+        break
+
+      case 'PENDING_PLACEMENT':
+        setRemotePendingPosition(msg.position)
+        setActiveTimeline(msg.timeline)
         break
     }
   }, [lastHostMessage, playerIndex, phase])
@@ -112,6 +136,8 @@ export default function GuestController() {
   const handleDropZoneClick = (position: number) => {
     if (phase === 'yourTurn') {
       setPendingPosition(position)
+      // Notify host so it can broadcast to other guests
+      send({ type: 'PENDING_POSITION', position })
     } else if (phase === 'tokenWindow' && tokens > 0 && !tokenUsed) {
       send({ type: 'USE_TOKEN', position })
       setTokenUsed(true)
@@ -122,11 +148,14 @@ export default function GuestController() {
     if (pendingPosition === null) return
     send({ type: 'CONFIRM_PLACEMENT', position: pendingPosition })
     setPendingPosition(null)
+    // Clear pending position broadcast
+    send({ type: 'PENDING_POSITION', position: null })
     setPhase('waiting')
   }
 
   const cancelPlacement = () => {
     setPendingPosition(null)
+    send({ type: 'PENDING_POSITION', position: null })
   }
 
   const handleSkipSong = () => {
@@ -220,7 +249,13 @@ export default function GuestController() {
     return (
       <div className="flex flex-col items-center min-h-screen bg-gray-900 text-white p-4">
         <h2 className="text-2xl font-bold text-purple-300 mb-2">Your Turn!</h2>
-        <p className="text-gray-400 text-sm mb-4">Listen on the host screen</p>
+
+        {/* Audio player (synced from host) */}
+        {audioUrl && (
+          <div className="w-full max-w-lg mb-4">
+            <AudioPlayer src={audioUrl} externalPlaying={audioPlaying} readOnly />
+          </div>
+        )}
 
         {tokens > 0 && pendingPosition === null && (
           <button
@@ -273,16 +308,41 @@ export default function GuestController() {
   }
 
   // Waiting phase (default)
+  const activePlayerName = gameInfo?.players[gameInfo.currentPlayerIndex]?.name
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
+    <div className="flex flex-col items-center min-h-screen bg-gray-900 text-white p-4">
       <h2 className="text-2xl font-bold text-purple-300 mb-4">
         {playerName}
       </h2>
       {gameInfo ? (
         <>
-          <p className="text-gray-400 mb-6">
-            {gameInfo.players[gameInfo.currentPlayerIndex]?.name}'s turn
+          <p className="text-gray-400 mb-4">
+            {activePlayerName}'s turn
           </p>
+
+          {/* Audio player (synced from host) */}
+          {audioUrl && (
+            <div className="w-full max-w-lg mb-4">
+              <AudioPlayer src={audioUrl} externalPlaying={audioPlaying} readOnly />
+            </div>
+          )}
+
+          {/* Active player's timeline with remote pending position */}
+          {activeTimeline.length > 0 && (
+            <div className="w-full max-w-lg mb-4">
+              <h3 className="text-sm text-gray-500 mb-1">
+                {activePlayerName}'s Timeline ({activeTimeline.length} cards)
+              </h3>
+              <Timeline
+                cards={activeTimeline}
+                faceUp
+                showDropZones
+                remotePendingPosition={remotePendingPosition}
+              />
+            </div>
+          )}
+
           <div className="w-full max-w-md">
             <h3 className="text-sm text-gray-500 mb-2">Players</h3>
             {gameInfo.players.map((p, i) => (

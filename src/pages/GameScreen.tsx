@@ -152,6 +152,9 @@ export default function GameScreen() {
         next.set(state.currentPlayerIndex, message.position) // TODO: map connId to playerIndex
         return next
       })
+    } else if (message.type === 'PENDING_POSITION') {
+      // Guest selecting a position — broadcast to all other guests
+      broadcast({ type: 'PENDING_PLACEMENT', position: message.position, timeline: currentPlayer.timeline })
     }
   }, [state, currentPlayer, broadcast, isPlacementCorrect, resolveTurn, skipSong])
 
@@ -212,7 +215,47 @@ export default function GameScreen() {
     return () => clearInterval(timer)
   }, [turnPhase, tokenTimeRemaining, resolveTokenWindow])
 
-  if (!currentPlayer || (!state.currentCard && (turnPhase === 'placing' || turnPhase === 'waitingForGuest'))) {
+  // Compute displayCard safely for hook calls (must be before early return)
+  const isPlacingOrWaiting = turnPhase === 'placing' || turnPhase === 'waitingForGuest'
+  const displayCard = isPlacingOrWaiting ? state.currentCard : pendingCard.current
+
+  // On-demand iTunes preview lookup — always look up audio on host (even for guest turns)
+  const itunesLookupSong = isPlacingOrWaiting ? displayCard : null
+  const { previewUrl: itunesPreviewUrl, loading: itunesLoading } = useItunesPreview(itunesLookupSong)
+  const effectivePreviewUrl = displayCard?.previewUrl || itunesPreviewUrl
+
+  // Broadcast AUDIO_SYNC when preview URL resolves
+  const prevPreviewUrlRef = useRef<string | null | undefined>(null)
+  useEffect(() => {
+    if (!isHost || !isMultiplayer) return
+    if (effectivePreviewUrl !== prevPreviewUrlRef.current) {
+      prevPreviewUrlRef.current = effectivePreviewUrl
+      if (effectivePreviewUrl && isPlacingOrWaiting) {
+        broadcast({ type: 'AUDIO_SYNC', previewUrl: effectivePreviewUrl, playing: true })
+      }
+    }
+  }, [isHost, isMultiplayer, effectivePreviewUrl, isPlacingOrWaiting, broadcast])
+
+  // Stop guest audio when entering revealed or tokenWindow
+  useEffect(() => {
+    if (!isHost || !isMultiplayer) return
+    if (turnPhase === 'revealed' || turnPhase === 'tokenWindow') {
+      broadcast({ type: 'AUDIO_SYNC', previewUrl: null, playing: false })
+    }
+  }, [isHost, isMultiplayer, turnPhase, broadcast])
+
+  // Broadcast PENDING_PLACEMENT when host's own pendingPosition changes (multiplayer)
+  useEffect(() => {
+    if (!isHost || !isMultiplayer || isGuestTurn || !currentPlayer) return
+    broadcast({ type: 'PENDING_PLACEMENT', position: pendingPosition, timeline: currentPlayer.timeline })
+  }, [isHost, isMultiplayer, isGuestTurn, pendingPosition, currentPlayer?.timeline, broadcast])
+
+  const handleAudioPlayStateChange = useCallback((playing: boolean) => {
+    if (!isHost || !isMultiplayer) return
+    broadcast({ type: 'AUDIO_SYNC', previewUrl: effectivePreviewUrl ?? null, playing })
+  }, [isHost, isMultiplayer, effectivePreviewUrl, broadcast])
+
+  if (!currentPlayer || (!state.currentCard && isPlacingOrWaiting)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white gap-4 p-4">
         <p className="text-gray-400 text-lg">No cards remaining in the deck!</p>
@@ -227,12 +270,8 @@ export default function GameScreen() {
     )
   }
 
-  const displayCard = (turnPhase === 'placing' || turnPhase === 'waitingForGuest') ? state.currentCard! : pendingCard.current!
-
-  // On-demand iTunes preview lookup — always look up audio on host (even for guest turns)
-  const itunesLookupSong = (turnPhase === 'placing' || turnPhase === 'waitingForGuest') ? displayCard : null
-  const { previewUrl: itunesPreviewUrl, loading: itunesLoading } = useItunesPreview(itunesLookupSong)
-  const effectivePreviewUrl = displayCard.previewUrl || itunesPreviewUrl
+  // After early return, displayCard is guaranteed non-null
+  const safeDisplayCard = displayCard!
 
   const handleDropZoneClick = (position: number) => {
     if (turnPhase === 'placing' && !isGuestTurn) {
@@ -363,23 +402,23 @@ export default function GameScreen() {
       <div className="w-full max-w-lg mb-6">
         {turnPhase === 'revealed' ? (
           <motion.div
-            key={displayCard.id}
+            key={safeDisplayCard.id}
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="w-full bg-gray-800 border-2 border-purple-500 rounded-xl flex flex-col items-center justify-center p-4"
           >
             <p className="text-base sm:text-lg font-semibold text-center leading-tight">
-              {displayCard.title}
+              {safeDisplayCard.title}
             </p>
             <p className="text-sm text-gray-400 mt-1 text-center">
-              {displayCard.artist}
+              {safeDisplayCard.artist}
             </p>
             <motion.p
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 1, scale: 1 }}
               className={`text-2xl font-bold mt-2 ${wasCorrect ? 'text-green-400' : 'text-red-400'}`}
             >
-              {displayCard.year}
+              {safeDisplayCard.year}
             </motion.p>
           </motion.div>
         ) : turnPhase === 'tokenWindow' ? (
@@ -413,14 +452,14 @@ export default function GameScreen() {
                 <p className="text-gray-400 text-sm">Loading preview...</p>
               </div>
             ) : effectivePreviewUrl ? (
-              <AudioPlayer src={effectivePreviewUrl} />
+              <AudioPlayer src={effectivePreviewUrl} onPlayStateChange={handleAudioPlayStateChange} />
             ) : (
               <p className="text-gray-400">No preview available</p>
             )}
           </motion.div>
         ) : (
           <motion.div
-            key={displayCard.id}
+            key={safeDisplayCard.id}
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="w-full bg-gray-800 border-2 border-purple-500 rounded-xl flex flex-col items-center justify-center p-4"
@@ -432,7 +471,7 @@ export default function GameScreen() {
                 <p className="text-gray-400 text-sm">Loading preview...</p>
               </div>
             ) : effectivePreviewUrl ? (
-              <AudioPlayer src={effectivePreviewUrl} />
+              <AudioPlayer src={effectivePreviewUrl} onPlayStateChange={handleAudioPlayStateChange} />
             ) : (
               <div className="flex flex-col items-center gap-3">
                 <p className="text-gray-400">No preview available</p>
