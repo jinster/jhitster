@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { usePeerGuest } from '../hooks/usePeerGuest'
+import { useMultiplayer } from '../context/MultiplayerContext'
 import Timeline from '../components/Timeline'
 import type { HostMessage, Song, Player } from '../types'
 
@@ -8,15 +8,11 @@ type GuestPhase = 'waiting' | 'yourTurn' | 'tokenWindow' | 'turnResult' | 'gameO
 
 export default function GuestController() {
   const navigate = useNavigate()
-  const roomCode = sessionStorage.getItem('jhitster-room') ?? ''
+  const { guestConnected, guestError, lastHostMessage, send, playerIndex } = useMultiplayer()
   const playerName = sessionStorage.getItem('jhitster-name') ?? ''
-  const playerIndex = parseInt(sessionStorage.getItem('jhitster-index') ?? '0', 10)
-
-  const { connected, send, lastMessage, error } = usePeerGuest(roomCode)
 
   const [phase, setPhase] = useState<GuestPhase>('waiting')
   const [timeline, setTimeline] = useState<Song[]>([])
-  const [, setCurrentCard] = useState<Song | null>(null)
   const [tokens, setTokens] = useState(2)
   const [pendingPosition, setPendingPosition] = useState<number | null>(null)
   const [turnResult, setTurnResult] = useState<{ wasCorrect: boolean; card: Song; stealResult: { playerIndex: number; playerName: string } | null } | null>(null)
@@ -26,32 +22,22 @@ export default function GuestController() {
   const [tokenTimeRemaining, setTokenTimeRemaining] = useState(0)
   const [takenPositions, setTakenPositions] = useState<number[]>([])
 
-  // Re-send JOIN on connect
-  useEffect(() => {
-    if (connected && playerName) {
-      send({ type: 'JOIN', requestedName: playerName })
-    }
-  }, [connected, playerName, send])
-
   // Handle host messages
   useEffect(() => {
-    if (!lastMessage) return
+    if (!lastHostMessage) return
 
-    const msg: HostMessage = lastMessage
+    const msg: HostMessage = lastHostMessage
 
     switch (msg.type) {
       case 'GAME_STATE':
         setGameInfo({ players: msg.players, currentPlayerIndex: msg.currentPlayerIndex })
-        if (msg.phase === 'victory') {
-          // Will be handled by GAME_OVER message
-        } else if (msg.currentPlayerIndex !== playerIndex) {
+        if (msg.currentPlayerIndex !== playerIndex) {
           setPhase('waiting')
         }
         break
 
       case 'YOUR_TURN':
         setTimeline(msg.timeline)
-        setCurrentCard(msg.currentCard)
         setTokens(msg.tokens)
         setPendingPosition(null)
         setPhase('yourTurn')
@@ -75,24 +61,23 @@ export default function GuestController() {
         break
 
       case 'PLAYER_ASSIGNMENT':
-        // Already handled in JoinGame
         break
     }
-  }, [lastMessage, playerIndex])
+  }, [lastHostMessage, playerIndex])
 
-  if (!connected && !error) {
+  if (!guestConnected && !guestError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
         <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-gray-400">Reconnecting to room {roomCode}...</p>
+        <p className="text-gray-400">Connecting...</p>
       </div>
     )
   }
 
-  if (error) {
+  if (guestError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
-        <p className="text-red-400 text-lg mb-4">{error}</p>
+        <p className="text-red-400 text-lg mb-4">{guestError}</p>
         <button
           onClick={() => navigate('/')}
           className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors cursor-pointer"

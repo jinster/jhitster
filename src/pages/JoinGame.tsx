@@ -1,51 +1,51 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { usePeerGuest } from '../hooks/usePeerGuest'
+import { useMultiplayer } from '../context/MultiplayerContext'
 
 export default function JoinGame() {
   const navigate = useNavigate()
+  const { joinRoom, guestConnected, guestError, lastHostMessage, send, setPlayerIndex } = useMultiplayer()
   const [roomCode, setRoomCode] = useState('')
   const [playerName, setPlayerName] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [assignedIndex, setAssignedIndex] = useState<number | null>(null)
 
-  const { connected, send, lastMessage, error } = usePeerGuest(submitted ? roomCode.toUpperCase() : '')
-
   // Send JOIN message once connected
   useEffect(() => {
-    if (connected && submitted && playerName.trim()) {
+    if (guestConnected && submitted && playerName.trim()) {
       send({ type: 'JOIN', requestedName: playerName.trim() })
     }
-  }, [connected, submitted, playerName, send])
+  }, [guestConnected, submitted, playerName, send])
 
   // Handle host messages
   useEffect(() => {
-    if (!lastMessage) return
+    if (!lastHostMessage) return
 
-    if (lastMessage.type === 'PLAYER_ASSIGNMENT') {
-      setAssignedIndex(lastMessage.playerIndex)
+    if (lastHostMessage.type === 'PLAYER_ASSIGNMENT') {
+      setAssignedIndex(lastHostMessage.playerIndex)
+      setPlayerIndex(lastHostMessage.playerIndex)
     }
 
-    if (lastMessage.type === 'GAME_STATE' && lastMessage.phase === 'playing') {
-      // Store connection info in sessionStorage for GuestController
-      sessionStorage.setItem('jhitster-room', roomCode.toUpperCase())
+    if (lastHostMessage.type === 'GAME_STATE' && lastHostMessage.phase === 'playing') {
+      // Store info in sessionStorage for page refreshes
       sessionStorage.setItem('jhitster-name', playerName.trim())
-      sessionStorage.setItem('jhitster-index', String(assignedIndex ?? lastMessage.currentPlayerIndex))
+      sessionStorage.setItem('jhitster-index', String(assignedIndex ?? 0))
       navigate('/guest-play')
     }
-  }, [lastMessage, roomCode, playerName, assignedIndex, navigate])
+  }, [lastHostMessage, playerName, assignedIndex, navigate, setPlayerIndex])
 
   const handleSubmit = () => {
     if (!roomCode.trim() || !playerName.trim()) return
     setSubmitted(true)
+    joinRoom(roomCode.toUpperCase(), playerName.trim())
   }
 
   if (submitted) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
-        {error ? (
+        {guestError ? (
           <>
-            <p className="text-red-400 text-lg mb-4">{error}</p>
+            <p className="text-red-400 text-lg mb-4">{guestError}</p>
             <button
               onClick={() => setSubmitted(false)}
               className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors cursor-pointer"
@@ -53,7 +53,7 @@ export default function JoinGame() {
               Try Again
             </button>
           </>
-        ) : connected ? (
+        ) : guestConnected ? (
           <>
             <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4" />
             <p className="text-lg font-semibold text-purple-300">Connected!</p>

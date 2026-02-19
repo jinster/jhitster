@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGame } from '../context/GameContext'
-import { usePeerHost } from '../hooks/usePeerHost'
+import { useMultiplayer } from '../context/MultiplayerContext'
 import { packs } from '../data/packs'
 import type { Song, GuestMessage } from '../types'
 
 export default function HostLobby() {
   const navigate = useNavigate()
   const { setPacks, setPlayers, dealInitialCards, state } = useGame()
-  const { roomCode, isReady, connectedNames, broadcast, sendTo, onGuestMessage } = usePeerHost()
+  const { startHost, roomCode, isReady, connectedNames, broadcast, sendTo, onGuestMessage } = useMultiplayer()
 
   const [selectedPacks, setSelectedPacks] = useState<Set<string>>(new Set([packs[0].meta.id]))
   const [hostName, setHostName] = useState('')
@@ -16,29 +16,32 @@ export default function HostLobby() {
   const [phase, setPhase] = useState<'config' | 'waiting'>('config')
   const [copied, setCopied] = useState(false)
 
-  // Store broadcast ref for use in GameScreen
-  const broadcastRef = useRef(broadcast)
-  broadcastRef.current = broadcast
-  const sendToRef = useRef(sendTo)
-  sendToRef.current = sendTo
+  const guestCountRef = useRef(0)
+
+  // Start peer host on mount
+  useEffect(() => {
+    startHost()
+  }, [startHost])
 
   // Handle guest messages
   const handleGuestMessage = useCallback((connId: string, message: GuestMessage) => {
     if (message.type === 'JOIN') {
       setGuestNames((prev) => {
+        if (prev.has(connId)) return prev
         const next = new Map(prev)
         next.set(connId, message.requestedName)
+        guestCountRef.current = next.size
         return next
       })
       // Send assignment
-      const idx = guestNames.size + 1 // Host is 0
-      sendToRef.current(connId, {
+      const idx = guestCountRef.current // Host is 0, guests start at 1
+      sendTo(connId, {
         type: 'PLAYER_ASSIGNMENT',
         playerIndex: idx,
         playerName: message.requestedName,
       })
     }
-  }, [guestNames.size])
+  }, [sendTo])
 
   useEffect(() => {
     onGuestMessage.current = handleGuestMessage
@@ -71,6 +74,10 @@ export default function HostLobby() {
     setPhase('waiting')
   }
 
+  // Use a ref to get updated state inside the timeout
+  const stateRef = useRef(state)
+  stateRef.current = state
+
   const handleStartGame = () => {
     const allNames = [hostName.trim(), ...Array.from(guestNames.values())]
     setPlayers(allNames)
@@ -79,17 +86,19 @@ export default function HostLobby() {
     setTimeout(() => {
       dealInitialCards(0)
 
-      // Broadcast initial game state to guests
-      broadcastRef.current({
-        type: 'GAME_STATE',
-        players: state.players,
-        currentPlayerIndex: state.currentPlayerIndex,
-        phase: state.phase,
-        targetTimelineLength: state.targetTimelineLength,
-        deckSize: state.deck.length,
-      })
-
-      navigate('/deal')
+      // Use a second timeout to let dealInitialCards settle
+      setTimeout(() => {
+        const s = stateRef.current
+        broadcast({
+          type: 'GAME_STATE',
+          players: s.players,
+          currentPlayerIndex: s.currentPlayerIndex,
+          phase: s.phase,
+          targetTimelineLength: s.targetTimelineLength,
+          deckSize: s.deck.length,
+        })
+        navigate('/deal')
+      }, 50)
     }, 50)
   }
 
