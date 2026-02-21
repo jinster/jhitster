@@ -18,6 +18,7 @@ export default function GameScreen() {
   const isMultiplayer = state.gameMode === 'multiplayer'
   const isHost = role === 'host'
   const isGuestTurn = isMultiplayer && isHost && state.currentPlayerIndex !== 0
+  const stealTimeSec = isMultiplayer ? 5 : 10
 
   const [turnPhase, setTurnPhase] = useState<TurnPhase>('placing')
   const [pendingPosition, setPendingPosition] = useState<number | null>(null)
@@ -28,7 +29,7 @@ export default function GameScreen() {
   // Token window state
   const [confirmedPosition, setConfirmedPosition] = useState<number | null>(null)
   const [tokenPlacements, setTokenPlacements] = useState<Map<number, number>>(new Map())
-  const [tokenTimeRemaining, setTokenTimeRemaining] = useState(5)
+  const [tokenTimeRemaining, setTokenTimeRemaining] = useState(0)
   const [selectedTokenPlayer, setSelectedTokenPlayer] = useState<number | null>(null)
   const [stealResult, setStealResult] = useState<{ playerIndex: number; playerName: string } | null>(null)
 
@@ -116,7 +117,7 @@ export default function GameScreen() {
       if (hasTokenPlayers) {
         setConfirmedPosition(position)
         setTokenPlacements(new Map())
-        setTokenTimeRemaining(5)
+        setTokenTimeRemaining(stealTimeSec)
         setSelectedTokenPlayer(null)
         setPendingPosition(null)
         setTurnPhase('tokenWindow')
@@ -304,7 +305,7 @@ export default function GameScreen() {
 
     if (hasTokenPlayers) {
       setTokenPlacements(new Map())
-      setTokenTimeRemaining(5)
+      setTokenTimeRemaining(stealTimeSec)
       setSelectedTokenPlayer(null)
       setTurnPhase('tokenWindow')
 
@@ -345,7 +346,7 @@ export default function GameScreen() {
     setWasCorrect(null)
     setConfirmedPosition(null)
     setTokenPlacements(new Map())
-    setTokenTimeRemaining(5)
+    setTokenTimeRemaining(stealTimeSec)
     setSelectedTokenPlayer(null)
     setStealResult(null)
 
@@ -437,7 +438,7 @@ export default function GameScreen() {
             <div className="w-full bg-gray-700 rounded-full h-2 mb-3">
               <div
                 className="bg-yellow-500 h-2 rounded-full transition-all duration-1000"
-                style={{ width: `${(tokenTimeRemaining / 5) * 100}%` }}
+                style={{ width: `${(tokenTimeRemaining / stealTimeSec) * 100}%` }}
               />
             </div>
             <p className="text-2xl font-bold text-yellow-400">{tokenTimeRemaining}s</p>

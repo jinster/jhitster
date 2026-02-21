@@ -21,6 +21,7 @@ export default function GuestController() {
   const [gameInfo, setGameInfo] = useState<{ players: Player[]; currentPlayerIndex: number } | null>(null)
   const [tokenTimeline, setTokenTimeline] = useState<Song[]>([])
   const [tokenTimeRemaining, setTokenTimeRemaining] = useState(0)
+  const [tokenTimeTotal, setTokenTimeTotal] = useState(5)
   const [takenPositions, setTakenPositions] = useState<number[]>([])
   const [tokenUsed, setTokenUsed] = useState(false)
 
@@ -59,6 +60,7 @@ export default function GuestController() {
       case 'TOKEN_WINDOW':
         setTokenTimeline(msg.timeline)
         setTokenTimeRemaining(msg.timeRemaining)
+        setTokenTimeTotal(msg.timeRemaining)
         setTakenPositions(msg.takenPositions)
         setTokenUsed(false)
         setPhase('tokenWindow')
@@ -219,7 +221,7 @@ export default function GuestController() {
           <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
             <div
               className="bg-yellow-500 h-2 rounded-full transition-all duration-1000"
-              style={{ width: `${(tokenTimeRemaining / 5) * 100}%` }}
+              style={{ width: `${(tokenTimeRemaining / tokenTimeTotal) * 100}%` }}
             />
           </div>
           <p className="text-center text-2xl font-bold text-yellow-400">{tokenTimeRemaining}s</p>

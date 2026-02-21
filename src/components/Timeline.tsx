@@ -40,22 +40,25 @@ export default function Timeline({
         />
       )}
 
-      {sorted.map((card, i) => (
-        <div key={card.id} className="flex flex-col sm:flex-row sm:items-center">
-          {showDropZones && (
-            <DropZone
-              position={i}
-              onClick={onDropZoneClick}
-              highlight={highlightPosition === i}
-              correct={highlightPosition === i ? highlightCorrect : null}
-              pending={pendingPosition === i}
-              tokenPlayer={tokenPositions?.get(i)}
-              remotePending={remotePendingPosition === i}
-            />
-          )}
-          <SongCard card={card} faceUp={faceUp} />
-        </div>
-      ))}
+      {sorted.map((card, i) => {
+        const sameYearAsPrev = i > 0 && sorted[i - 1].year === card.year;
+        return (
+          <div key={card.id} className="flex flex-col sm:flex-row sm:items-center">
+            {showDropZones && !sameYearAsPrev && (
+              <DropZone
+                position={i}
+                onClick={onDropZoneClick}
+                highlight={highlightPosition === i}
+                correct={highlightPosition === i ? highlightCorrect : null}
+                pending={pendingPosition === i}
+                tokenPlayer={tokenPositions?.get(i)}
+                remotePending={remotePendingPosition === i}
+              />
+            )}
+            <SongCard card={card} faceUp={faceUp} />
+          </div>
+        );
+      })}
 
       {sorted.length > 0 && showDropZones && (
         <DropZone
