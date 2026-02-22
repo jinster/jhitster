@@ -127,7 +127,7 @@ export default function GameScreen() {
           type: 'TOKEN_WINDOW',
           timeline: currentPlayer.timeline,
           card: state.currentCard!,
-          timeRemaining: 5,
+          timeRemaining: stealTimeSec,
           takenPositions: [position],
         })
       } else {
@@ -225,8 +225,9 @@ export default function GameScreen() {
   const isPlacingOrWaiting = turnPhase === 'placing' || turnPhase === 'waitingForGuest'
   const displayCard = isPlacingOrWaiting ? state.currentCard : pendingCard.current
 
-  // On-demand iTunes preview lookup — always look up audio on host (even for guest turns)
-  const itunesLookupSong = isPlacingOrWaiting ? displayCard : null
+  // On-demand iTunes preview lookup — keep alive during tokenWindow so audio doesn't stop
+  const isAudioPhase = isPlacingOrWaiting || turnPhase === 'tokenWindow'
+  const itunesLookupSong = isAudioPhase ? displayCard : null
   const { previewUrl: itunesPreviewUrl, loading: itunesLoading } = useItunesPreview(itunesLookupSong)
   const effectivePreviewUrl = displayCard?.previewUrl || itunesPreviewUrl
 
@@ -242,10 +243,10 @@ export default function GameScreen() {
     }
   }, [isHost, isMultiplayer, effectivePreviewUrl, isPlacingOrWaiting, broadcast])
 
-  // Stop guest audio when entering revealed or tokenWindow
+  // Stop guest audio when entering revealed phase (after steal window resolves)
   useEffect(() => {
     if (!isHost || !isMultiplayer) return
-    if (turnPhase === 'revealed' || turnPhase === 'tokenWindow') {
+    if (turnPhase === 'revealed') {
       broadcast({ type: 'AUDIO_SYNC', previewUrl: null, playing: false })
     }
   }, [isHost, isMultiplayer, turnPhase, broadcast])
@@ -314,7 +315,7 @@ export default function GameScreen() {
           type: 'TOKEN_WINDOW',
           timeline: currentPlayer.timeline,
           card: state.currentCard!,
-          timeRemaining: 5,
+          timeRemaining: stealTimeSec,
           takenPositions: [pendingPosition],
         })
       }
@@ -404,6 +405,32 @@ export default function GameScreen() {
         </div>
       </div>
 
+      {/* Audio Player — persists across placing/tokenWindow to avoid interruption */}
+      {turnPhase !== 'revealed' && (
+        <div className="w-full max-w-lg mb-4">
+          {itunesLoading ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-gray-400 text-sm">Loading preview...</p>
+            </div>
+          ) : effectivePreviewUrl ? (
+            <AudioPlayer src={effectivePreviewUrl} onPlayStateChange={handleAudioPlayStateChange} />
+          ) : turnPhase === 'placing' && hostCanPlace ? (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-gray-400">No preview available</p>
+              <button
+                onClick={handleSkipNoPreview}
+                className="px-6 py-3 bg-gray-700 hover:bg-gray-600 active:bg-gray-800 text-white font-semibold rounded-lg transition-colors cursor-pointer touch-manipulation"
+              >
+                Skip — Draw New Card
+              </button>
+            </div>
+          ) : !effectivePreviewUrl && turnPhase !== 'tokenWindow' ? (
+            <p className="text-gray-400 text-center">No preview available</p>
+          ) : null}
+        </div>
+      )}
+
       {/* Current Card Area */}
       <div className="w-full max-w-lg mb-6">
         {turnPhase === 'revealed' ? (
@@ -451,17 +478,6 @@ export default function GameScreen() {
             className="w-full bg-gray-800 border-2 border-indigo-500 rounded-xl flex flex-col items-center justify-center p-4"
           >
             <p className="text-sm text-indigo-400 mb-3">Waiting for {currentPlayer.name} to place...</p>
-            <p className="text-sm text-gray-500 mb-3">Audio plays here for everyone to hear</p>
-            {itunesLoading ? (
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-gray-400 text-sm">Loading preview...</p>
-              </div>
-            ) : effectivePreviewUrl ? (
-              <AudioPlayer src={effectivePreviewUrl} onPlayStateChange={handleAudioPlayStateChange} />
-            ) : (
-              <p className="text-gray-400">No preview available</p>
-            )}
           </motion.div>
         ) : (
           <motion.div
@@ -471,24 +487,6 @@ export default function GameScreen() {
             className="w-full bg-gray-800 border-2 border-purple-500 rounded-xl flex flex-col items-center justify-center p-4"
           >
             <p className="text-sm text-gray-500 mb-3">Listen and guess the year</p>
-            {itunesLoading ? (
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-gray-400 text-sm">Loading preview...</p>
-              </div>
-            ) : effectivePreviewUrl ? (
-              <AudioPlayer src={effectivePreviewUrl} onPlayStateChange={handleAudioPlayStateChange} />
-            ) : (
-              <div className="flex flex-col items-center gap-3">
-                <p className="text-gray-400">No preview available</p>
-                <button
-                  onClick={handleSkipNoPreview}
-                  className="px-6 py-3 bg-gray-700 hover:bg-gray-600 active:bg-gray-800 text-white font-semibold rounded-lg transition-colors cursor-pointer touch-manipulation"
-                >
-                  Skip — Draw New Card
-                </button>
-              </div>
-            )}
           </motion.div>
         )}
       </div>
@@ -599,6 +597,7 @@ export default function GameScreen() {
           highlightCorrect={turnPhase === 'revealed' ? wasCorrect : null}
           pendingPosition={turnPhase === 'placing' ? pendingPosition : null}
           tokenPositions={turnPhase === 'tokenWindow' ? tokenPositionsMap : undefined}
+          lockedPosition={turnPhase === 'tokenWindow' ? confirmedPosition : null}
         />
       </div>
 

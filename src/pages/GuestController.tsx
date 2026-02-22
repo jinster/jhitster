@@ -237,6 +237,7 @@ export default function GuestController() {
                 faceUp
                 showDropZones
                 onDropZoneClick={handleDropZoneClick}
+                lockedPosition={takenPositions.length > 0 ? takenPositions[0] : null}
               />
             </div>
           </>
@@ -244,11 +245,6 @@ export default function GuestController() {
           <p className="text-yellow-400 font-semibold">Token placed! Waiting for result...</p>
         ) : (
           <p className="text-gray-500">No tokens remaining</p>
-        )}
-        {takenPositions.length > 0 && (
-          <p className="text-gray-500 text-sm mt-2">
-            Positions already claimed: {takenPositions.join(', ')}
-          </p>
         )}
       </div>
     )
