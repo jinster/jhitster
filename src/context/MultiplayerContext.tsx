@@ -1,6 +1,12 @@
 import { createContext, useContext, useState, useRef, useCallback, type ReactNode } from 'react'
-import Peer, { type DataConnection } from 'peerjs'
+import Peer, { type DataConnection, type PeerJSOption } from 'peerjs'
 import type { HostMessage, GuestMessage } from '../types'
+
+// Allow overriding the PeerJS signaling server (e.g. for E2E tests with a local server)
+const peerOptions: PeerJSOption | undefined =
+  import.meta.env.VITE_PEERJS_HOST
+    ? { host: import.meta.env.VITE_PEERJS_HOST, port: Number(import.meta.env.VITE_PEERJS_PORT || 9000), path: '/' }
+    : undefined
 
 function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -66,7 +72,7 @@ export function MultiplayerProvider({ children }: { children: ReactNode }) {
     setRole('host')
     setIsReady(false)
 
-    const peer = new Peer(`jhitster-${code}`)
+    const peer = new Peer(`jhitster-${code}`, peerOptions)
     peerRef.current = peer
 
     peer.on('open', () => {
@@ -103,7 +109,7 @@ export function MultiplayerProvider({ children }: { children: ReactNode }) {
     setGuestConnected(false)
     setGuestError(null)
 
-    const peer = new Peer()
+    const peer = new Peer(peerOptions ?? {})
     peerRef.current = peer
 
     peer.on('open', () => {
